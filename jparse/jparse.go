@@ -59,11 +59,12 @@ var nuds = [...]nud{
 
 // leds defines led functions for token types that are valid
 // in the infix position.
+// 中序处理
 var leds = [...]led{
-	typeParenOpen:    parseFunctionCall,
-	typeBracketOpen:  parsePredicate,
-	typeBraceOpen:    parseGroup,
-	typeCondition:    parseConditional,
+	typeParenOpen:    parseFunctionCall, // 小括号
+	typeBracketOpen:  parsePredicate,    // 中括号
+	typeBraceOpen:    parseGroup,        // 打括号
+	typeCondition:    parseConditional,  // 三元操作
 	typeAssign:       parseAssignment,
 	typeApply:        parseFunctionApplication,
 	typeConcat:       parseStringConcatenation,
@@ -94,6 +95,7 @@ var leds = [...]led{
 // in which the outer slice is ordered by operator precedence
 // (highest to lowest) and each inner slice contains token
 // types of equal operator precedence.
+// 优先级从高到低
 var bps = initBindingPowers([][]tokenType{
 	{
 		typeParenOpen,

@@ -2022,7 +2022,7 @@ func TestPathNode(t *testing.T) {
 			},
 		},
 		{
-			// Literal on lhs of dot operator.
+			// Literal on Lhs of dot operator.
 			Input: `"Product Name".$uppercase()`,
 			Error: &jparse.Error{
 				// TODO: Need position info.

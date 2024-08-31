@@ -518,6 +518,7 @@ func groupItemsByKey(obj *jparse.ObjectNode, items reflect.Value, env *environme
 }
 
 func evalBlock(node *jparse.BlockNode, data reflect.Value, env *environment) (reflect.Value, error) {
+	fmt.Println("eval BlockNode")
 	var err error
 	var res reflect.Value
 
@@ -530,6 +531,8 @@ func evalBlock(node *jparse.BlockNode, data reflect.Value, env *environment) (re
 
 	// Evaluate all expressions in the block.
 	for _, node := range node.Exprs {
+		// print node type
+		// fmt.Printf("%#+v", node)
 		res, err = eval(node, data, env)
 		if err != nil {
 			return undefined, err

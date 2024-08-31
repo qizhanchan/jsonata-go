@@ -22,7 +22,8 @@ type Node interface {
 
 // A StringNode represents a string literal.
 type StringNode struct {
-	Value string
+	NodeType string
+	Value    string
 }
 
 func parseString(p *parser, t token) (Node, error) {
@@ -38,7 +39,8 @@ func parseString(p *parser, t token) (Node, error) {
 	}
 
 	return &StringNode{
-		Value: s,
+		NodeType: "StringNode",
+		Value:    s,
 	}, nil
 }
 
@@ -47,12 +49,13 @@ func (n *StringNode) optimize() (Node, error) {
 }
 
 func (n StringNode) String() string {
-	return fmt.Sprintf("%q", n.Value)
+	return fmt.Sprintf(" string node: %q", n.Value)
 }
 
 // A NumberNode represents a number literal.
 type NumberNode struct {
-	Value float64
+	NodeType string
+	Value    float64
 }
 
 func parseNumber(p *parser, t token) (Node, error) {
@@ -68,7 +71,8 @@ func parseNumber(p *parser, t token) (Node, error) {
 	}
 
 	return &NumberNode{
-		Value: n,
+		NodeType: "NumberNode",
+		Value:    n,
 	}, nil
 }
 
@@ -82,7 +86,8 @@ func (n NumberNode) String() string {
 
 // A BooleanNode represents the boolean constant true or false.
 type BooleanNode struct {
-	Value bool
+	NodeType string
+	Value    bool
 }
 
 func parseBoolean(p *parser, t token) (Node, error) {
@@ -99,7 +104,8 @@ func parseBoolean(p *parser, t token) (Node, error) {
 	}
 
 	return &BooleanNode{
-		Value: b,
+		NodeType: "BooleanNode",
+		Value:    b,
 	}, nil
 }
 
@@ -112,10 +118,14 @@ func (n BooleanNode) String() string {
 }
 
 // A NullNode represents the JSON null value.
-type NullNode struct{}
+type NullNode struct {
+	NodeType string
+}
 
 func parseNull(p *parser, t token) (Node, error) {
-	return &NullNode{}, nil
+	return &NullNode{
+		NodeType: "NullNode",
+	}, nil
 }
 
 func (n *NullNode) optimize() (Node, error) {
@@ -128,7 +138,8 @@ func (NullNode) String() string {
 
 // A RegexNode represents a regular expression.
 type RegexNode struct {
-	Value *regexp.Regexp
+	NodeType string
+	Value    *regexp.Regexp
 }
 
 func parseRegex(p *parser, t token) (Node, error) {
@@ -148,7 +159,8 @@ func parseRegex(p *parser, t token) (Node, error) {
 	}
 
 	return &RegexNode{
-		Value: re,
+		NodeType: "RegexNode",
+		Value:    re,
 	}, nil
 }
 
@@ -166,12 +178,14 @@ func (n RegexNode) String() string {
 
 // A VariableNode represents a JSONata variable.
 type VariableNode struct {
-	Name string
+	NodeType string
+	Name     string
 }
 
 func parseVariable(p *parser, t token) (Node, error) {
 	return &VariableNode{
-		Name: t.Value,
+		NodeType: "VariableNode",
+		Name:     t.Value,
 	}, nil
 }
 
@@ -185,13 +199,15 @@ func (n VariableNode) String() string {
 
 // A NameNode represents a JSON field name.
 type NameNode struct {
-	Value   string
-	escaped bool
+	NodeType string
+	Value    string
+	escaped  bool
 }
 
 func parseName(p *parser, t token) (Node, error) {
 	return &NameNode{
-		Value: t.Value,
+		NodeType: "NameNode",
+		Value:    t.Value,
 	}, nil
 }
 
@@ -204,7 +220,8 @@ func parseEscapedName(p *parser, t token) (Node, error) {
 
 func (n *NameNode) optimize() (Node, error) {
 	return &PathNode{
-		Steps: []Node{n},
+		NodeType: "PathNode",
+		Steps:    []Node{n},
 	}, nil
 }
 
@@ -226,6 +243,7 @@ func (n NameNode) Escaped() bool {
 // A PathNode represents a JSON object path. It consists of one
 // or more 'steps' or Nodes (most commonly NameNode objects).
 type PathNode struct {
+	NodeType   string
 	Steps      []Node
 	KeepArrays bool
 }
@@ -244,12 +262,14 @@ func (n PathNode) String() string {
 
 // A NegationNode represents a numeric negation operation.
 type NegationNode struct {
-	RHS Node
+	NodeType string
+	RHS      Node
 }
 
 func parseNegation(p *parser, t token) (Node, error) {
 	return &NegationNode{
-		RHS: p.parseExpression(p.bp(t.Type)),
+		NodeType: "NegationNode",
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -266,7 +286,8 @@ func (n *NegationNode) optimize() (Node, error) {
 	// instead of waiting for evaluation.
 	if number, ok := n.RHS.(*NumberNode); ok {
 		return &NumberNode{
-			Value: -number.Value,
+			NodeType: "NumberNode",
+			Value:    -number.Value,
 		}, nil
 	}
 
@@ -279,8 +300,9 @@ func (n NegationNode) String() string {
 
 // A RangeNode represents the range operator.
 type RangeNode struct {
-	LHS Node
-	RHS Node
+	NodeType string
+	LHS      Node
+	RHS      Node
 }
 
 func (n *RangeNode) optimize() (Node, error) {
@@ -306,7 +328,8 @@ func (n RangeNode) String() string {
 
 // An ArrayNode represents an array of items.
 type ArrayNode struct {
-	Items []Node
+	NodeType string
+	Items    []Node
 }
 
 func parseArray(p *parser, t token) (Node, error) {
@@ -322,8 +345,9 @@ func parseArray(p *parser, t token) (Node, error) {
 			p.consume(typeRange, true)
 
 			item = &RangeNode{
-				LHS: item,
-				RHS: p.parseExpression(0),
+				NodeType: "RangeNode",
+				LHS:      item,
+				RHS:      p.parseExpression(0),
 			}
 		}
 
@@ -338,7 +362,8 @@ func parseArray(p *parser, t token) (Node, error) {
 	p.consume(typeBracketClose, false)
 
 	return &ArrayNode{
-		Items: items,
+		NodeType: "ArrayNode",
+		Items:    items,
 	}, nil
 }
 
@@ -363,7 +388,8 @@ func (n ArrayNode) String() string {
 // An ObjectNode represents an object, an unordered list of
 // key-value pairs.
 type ObjectNode struct {
-	Pairs [][2]Node
+	NodeType string
+	Pairs    [][2]Node
 }
 
 func parseObject(p *parser, t token) (Node, error) {
@@ -387,7 +413,8 @@ func parseObject(p *parser, t token) (Node, error) {
 	p.consume(typeBraceClose, false)
 
 	return &ObjectNode{
-		Pairs: pairs,
+		NodeType: "ObjectNode",
+		Pairs:    pairs,
 	}, nil
 }
 
@@ -420,7 +447,8 @@ func (n ObjectNode) String() string {
 
 // A BlockNode represents a block expression.
 type BlockNode struct {
-	Exprs []Node
+	NodeType string
+	Exprs    []Node
 }
 
 func parseBlock(p *parser, t token) (Node, error) {
@@ -440,7 +468,8 @@ func parseBlock(p *parser, t token) (Node, error) {
 	p.consume(typeParenClose, false)
 
 	return &BlockNode{
-		Exprs: exprs,
+		NodeType: "BlockNode",
+		Exprs:    exprs,
 	}, nil
 }
 
@@ -495,9 +524,10 @@ func (DescendentNode) String() string {
 // An ObjectTransformationNode represents the object transformation
 // operator.
 type ObjectTransformationNode struct {
-	Pattern Node
-	Updates Node
-	Deletes Node
+	NodeType string
+	Pattern  Node
+	Updates  Node
+	Deletes  Node
 }
 
 func parseObjectTransformation(p *parser, t token) (Node, error) {
@@ -514,9 +544,10 @@ func parseObjectTransformation(p *parser, t token) (Node, error) {
 	p.consume(typePipe, true)
 
 	return &ObjectTransformationNode{
-		Pattern: pattern,
-		Updates: updates,
-		Deletes: deletes,
+		NodeType: "ObjectTransformationNode",
+		Pattern:  pattern,
+		Updates:  updates,
+		Deletes:  deletes,
 	}, nil
 }
 
@@ -830,6 +861,7 @@ func getBracketedString(s string, open, close rune) string {
 
 // A LambdaNode represents a user-defined JSONata function.
 type LambdaNode struct {
+	NodeType   string
 	Body       Node
 	ParamNames []string
 	shorthand  bool
@@ -873,6 +905,7 @@ func (n LambdaNode) Shorthand() bool {
 // A TypedLambdaNode represents a user-defined JSONata function
 // with a type signature.
 type TypedLambdaNode struct {
+	NodeType string
 	*LambdaNode
 	In  []Param
 	Out []Param
@@ -911,8 +944,9 @@ func (n TypedLambdaNode) String() string {
 
 // A PartialNode represents a partially applied function.
 type PartialNode struct {
-	Func Node
-	Args []Node
+	NodeType string
+	Func     Node
+	Args     []Node
 }
 
 func (n *PartialNode) optimize() (Node, error) {
@@ -940,7 +974,9 @@ func (n PartialNode) String() string {
 
 // A PlaceholderNode represents a placeholder argument
 // in a partially applied function.
-type PlaceholderNode struct{}
+type PlaceholderNode struct {
+	NodeType string
+}
 
 func (n *PlaceholderNode) optimize() (Node, error) {
 	return n, nil
@@ -952,8 +988,9 @@ func (PlaceholderNode) String() string {
 
 // A FunctionCallNode represents a call to a function.
 type FunctionCallNode struct {
-	Func Node
-	Args []Node
+	NodeType string
+	Func     Node
+	Args     []Node
 }
 
 const typePlaceholder = typeCondition
@@ -973,7 +1010,9 @@ func parseFunctionCall(p *parser, t token, lhs Node) (Node, error) {
 
 		if p.token.Type == typePlaceholder {
 			isPartial = true
-			arg = &PlaceholderNode{}
+			arg = &PlaceholderNode{
+				NodeType: "PlaceholderNode",
+			}
 			p.consume(typePlaceholder, true)
 		} else {
 			arg = p.parseExpression(0)
@@ -991,14 +1030,16 @@ func parseFunctionCall(p *parser, t token, lhs Node) (Node, error) {
 
 	if isPartial {
 		return &PartialNode{
-			Func: lhs,
-			Args: args,
+			NodeType: "PartialNode",
+			Func:     lhs,
+			Args:     args,
 		}, nil
 	}
 
 	return &FunctionCallNode{
-		Func: lhs,
-		Args: args,
+		NodeType: "FunctionCallNode",
+		Func:     lhs,
+		Args:     args,
 	}, nil
 }
 
@@ -1069,6 +1110,7 @@ func parseLambdaDefinition(p *parser, shorthand bool) (Node, error) {
 	}
 
 	return &TypedLambdaNode{
+		NodeType:   "TypedLambdaNode",
 		LambdaNode: lambda,
 		In:         params,
 	}, nil
@@ -1147,8 +1189,9 @@ Loop:
 
 // A PredicateNode represents a predicate expression.
 type PredicateNode struct {
-	Expr    Node
-	Filters []Node
+	NodeType string
+	Expr     Node
+	Filters  []Node
 }
 
 func (n *PredicateNode) optimize() (Node, error) {
@@ -1161,7 +1204,8 @@ func (n PredicateNode) String() string {
 
 // A GroupNode represents a group expression.
 type GroupNode struct {
-	Expr Node
+	NodeType string
+	Expr     Node
 	*ObjectNode
 }
 
@@ -1173,6 +1217,7 @@ func parseGroup(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &GroupNode{
+		NodeType:   "GroupNode",
 		Expr:       lhs,
 		ObjectNode: obj.(*ObjectNode),
 	}, nil
@@ -1209,9 +1254,10 @@ func (n GroupNode) String() string {
 
 // A ConditionalNode represents an if-then-else expression.
 type ConditionalNode struct {
-	If   Node
-	Then Node
-	Else Node
+	NodeType string
+	If       Node
+	Then     Node
+	Else     Node
 }
 
 func parseConditional(p *parser, t token, lhs Node) (Node, error) {
@@ -1267,8 +1313,9 @@ func (n ConditionalNode) String() string {
 
 // An AssignmentNode represents a variable assignment.
 type AssignmentNode struct {
-	Name  string
-	Value Node
+	NodeType string
+	Name     string
+	Value    Node
 }
 
 func parseAssignment(p *parser, t token, lhs Node) (Node, error) {
@@ -1279,8 +1326,9 @@ func parseAssignment(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &AssignmentNode{
-		Name:  v.Name,
-		Value: p.parseExpression(p.bp(t.Type) - 1), // right-associative
+		NodeType: "AssignmentNode",
+		Name:     v.Name,
+		Value:    p.parseExpression(p.bp(t.Type) - 1), // right-associative
 	}, nil
 }
 
@@ -1333,9 +1381,10 @@ func (op NumericOperator) String() string {
 
 // A NumericOperatorNode represents a numeric operation.
 type NumericOperatorNode struct {
-	Type NumericOperator
-	LHS  Node
-	RHS  Node
+	NodeType string
+	Type     NumericOperator
+	LHS      Node
+	RHS      Node
 }
 
 func parseNumericOperator(p *parser, t token, lhs Node) (Node, error) {
@@ -1358,9 +1407,10 @@ func parseNumericOperator(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &NumericOperatorNode{
-		Type: op,
-		LHS:  lhs,
-		RHS:  p.parseExpression(p.bp(t.Type)),
+		NodeType: "NumericOperatorNode",
+		Type:     op,
+		LHS:      lhs,
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -1423,9 +1473,10 @@ func (op ComparisonOperator) String() string {
 
 // A ComparisonOperatorNode represents a comparison operation.
 type ComparisonOperatorNode struct {
-	Type ComparisonOperator
-	LHS  Node
-	RHS  Node
+	NodeType string
+	Type     ComparisonOperator `json:"-"`
+	LHS      Node
+	RHS      Node
 }
 
 func parseComparisonOperator(p *parser, t token, lhs Node) (Node, error) {
@@ -1452,9 +1503,10 @@ func parseComparisonOperator(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &ComparisonOperatorNode{
-		Type: op,
-		LHS:  lhs,
-		RHS:  p.parseExpression(p.bp(t.Type)),
+		NodeType: "ComparisonOperatorNode",
+		Type:     op,
+		LHS:      lhs,
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -1503,9 +1555,10 @@ func (op BooleanOperator) String() string {
 
 // A BooleanOperatorNode represents a boolean operation.
 type BooleanOperatorNode struct {
-	Type BooleanOperator
-	LHS  Node
-	RHS  Node
+	NodeType string
+	Type     BooleanOperator
+	LHS      Node
+	RHS      Node
 }
 
 func parseBooleanOperator(p *parser, t token, lhs Node) (Node, error) {
@@ -1522,9 +1575,10 @@ func parseBooleanOperator(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &BooleanOperatorNode{
-		Type: op,
-		LHS:  lhs,
-		RHS:  p.parseExpression(p.bp(t.Type)),
+		NodeType: "BooleanOperatorNode",
+		Type:     op,
+		LHS:      lhs,
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -1552,14 +1606,16 @@ func (n BooleanOperatorNode) String() string {
 // A StringConcatenationNode represents a string concatenation
 // operation.
 type StringConcatenationNode struct {
-	LHS Node
-	RHS Node
+	NodeType string
+	LHS      Node
+	RHS      Node
 }
 
 func parseStringConcatenation(p *parser, t token, lhs Node) (Node, error) {
 	return &StringConcatenationNode{
-		LHS: lhs,
-		RHS: p.parseExpression(p.bp(t.Type)),
+		NodeType: "StringConcatenationNode",
+		LHS:      lhs,
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -1603,8 +1659,9 @@ type SortTerm struct {
 
 // A SortNode represents a sort clause on a JSONata path step.
 type SortNode struct {
-	Expr  Node
-	Terms []SortTerm
+	NodeType string
+	Expr     Node
+	Terms    []SortTerm
 }
 
 func parseSort(p *parser, t token, lhs Node) (Node, error) {
@@ -1639,8 +1696,9 @@ func parseSort(p *parser, t token, lhs Node) (Node, error) {
 	p.consume(typeParenClose, true)
 
 	return &SortNode{
-		Expr:  lhs,
-		Terms: terms,
+		NodeType: "SortNode",
+		Expr:     lhs,
+		Terms:    terms,
 	}, nil
 }
 
@@ -1687,14 +1745,16 @@ func (n SortNode) String() string {
 // A FunctionApplicationNode represents a function application
 // operation.
 type FunctionApplicationNode struct {
-	LHS Node
-	RHS Node
+	NodeType string
+	LHS      Node
+	RHS      Node
 }
 
 func parseFunctionApplication(p *parser, t token, lhs Node) (Node, error) {
 	return &FunctionApplicationNode{
-		LHS: lhs,
-		RHS: p.parseExpression(p.bp(t.Type)),
+		NodeType: "FunctionApplicationNode",
+		LHS:      lhs,
+		RHS:      p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
@@ -1719,24 +1779,27 @@ func (n FunctionApplicationNode) String() string {
 	return fmt.Sprintf("%s ~> %s", n.LHS, n.RHS)
 }
 
-// A dotNode is an interim structure used to process JSONata path
+// A DotNode is an interim structure used to process JSONata path
 // expressions. It is deliberately unexported and creates a PathNode
 // during its optimize phase.
-type dotNode struct {
-	lhs Node
-	rhs Node
+type DotNode struct {
+	NodeType string
+	lhs      Node
+	rhs      Node
 }
 
 func parseDot(p *parser, t token, lhs Node) (Node, error) {
-	return &dotNode{
+	return &DotNode{
 		lhs: lhs,
 		rhs: p.parseExpression(p.bp(t.Type)),
 	}, nil
 }
 
-func (n *dotNode) optimize() (Node, error) {
+func (n *DotNode) optimize() (Node, error) {
 
-	path := &PathNode{}
+	path := &PathNode{
+		NodeType: "PathNode",
+	}
 
 	lhs, err := n.lhs.optimize()
 	if err != nil {
@@ -1783,20 +1846,21 @@ func (n *dotNode) optimize() (Node, error) {
 	return path, nil
 }
 
-func (n dotNode) String() string {
+func (n DotNode) String() string {
 	return fmt.Sprintf("%s.%s", n.lhs, n.rhs)
 }
 
-// A singletonArrayNode is an interim data structure used when
+// A SingletonArrayNode is an interim data structure used when
 // processing path expressions. It is deliberately unexported
 // and gets converted into a PathNode during optimization.
-type singletonArrayNode struct {
-	lhs Node
+type SingletonArrayNode struct {
+	NodeType string
+	Lhs      Node
 }
 
-func (n *singletonArrayNode) optimize() (Node, error) {
+func (n *SingletonArrayNode) optimize() (Node, error) {
 
-	lhs, err := n.lhs.optimize()
+	lhs, err := n.Lhs.optimize()
 	if err != nil {
 		return nil, err
 	}
@@ -1807,14 +1871,15 @@ func (n *singletonArrayNode) optimize() (Node, error) {
 		return lhs, nil
 	default:
 		return &PathNode{
+			NodeType:   "PathNode",
 			Steps:      []Node{lhs},
 			KeepArrays: true,
 		}, nil
 	}
 }
 
-func (n singletonArrayNode) String() string {
-	return fmt.Sprintf("%s[]", n.lhs)
+func (n SingletonArrayNode) String() string {
+	return fmt.Sprintf("%s[]", n.Lhs)
 }
 
 // A predicateNode is an interim data structure used when processing
@@ -1832,8 +1897,9 @@ func parsePredicate(p *parser, t token, lhs Node) (Node, error) {
 
 		// Empty brackets in a path mean that we should not
 		// flatten singleton arrays into single values.
-		return &singletonArrayNode{
-			lhs: lhs,
+		return &SingletonArrayNode{
+			NodeType: "SingletonArrayNode",
+			Lhs:      lhs,
 		}, nil
 	}
 
@@ -1871,8 +1937,9 @@ func (n *predicateNode) optimize() (Node, error) {
 			last.Filters = append(last.Filters, rhs)
 		default:
 			step := &PredicateNode{
-				Expr:    last,
-				Filters: []Node{rhs},
+				NodeType: "PredicateNode",
+				Expr:     last,
+				Filters:  []Node{rhs},
 			}
 			lhs.Steps = append(lhs.Steps[:i], step)
 		}

@@ -278,10 +278,15 @@ func timeCallables(t time.Time) map[string]reflect.Value {
 		fn: nowT,
 		args: []jparse.Node{
 			&jparse.NumberNode{
-				Value: float64(ms),
+				NodeType: "NumberNode",
+				Value:    float64(ms),
 			},
-			&jparse.PlaceholderNode{},
-			&jparse.PlaceholderNode{},
+			&jparse.PlaceholderNode{
+				NodeType: "PlaceholderNode",
+			},
+			&jparse.PlaceholderNode{
+				NodeType: "PlaceholderNode",
+			},
 		},
 	}
 
