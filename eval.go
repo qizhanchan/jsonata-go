@@ -5,6 +5,7 @@
 package jsonata
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -167,7 +168,7 @@ func evalNameArray(node *jparse.NameNode, data reflect.Value, env *environment) 
 	return reflect.ValueOf(results), nil
 }
 
-func evalPath(node *jparse.PathNode, data reflect.Value, env *environment) (reflect.Value, error) {
+func evalPath(node *jparse.PathNode, input reflect.Value, env *environment) (reflect.Value, error) {
 	if len(node.Steps) == 0 {
 		return undefined, nil
 	}
@@ -180,11 +181,11 @@ func evalPath(node *jparse.PathNode, data reflect.Value, env *environment) (refl
 		_, isVar = step0.Expr.(*jparse.VariableNode)
 	}
 
-	output := data
-	if isVar || !jtypes.IsArray(data) {
+	output := input
+	if isVar || !jtypes.IsArray(input) {
 		output = reflect.MakeSlice(typeInterfaceSlice, 1, 1)
-		if data.IsValid() {
-			output.Index(0).Set(data)
+		if input.IsValid() {
+			output.Index(0).Set(input)
 		}
 	}
 
@@ -217,21 +218,27 @@ func evalPath(node *jparse.PathNode, data reflect.Value, env *environment) (refl
 	return output, nil
 }
 
-func evalPathStep(step jparse.Node, data reflect.Value, env *environment, lastStep bool) (reflect.Value, error) {
+func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastStep bool) (reflect.Value, error) {
 	var err error
 	var results []reflect.Value
-
-	if seq, ok := asSequence(data); ok {
+	fmt.Println("")
+	fmt.Println("evalPathStep start")
+	// TODO: 不知道为什么要转成列表，似乎可以直接取值就行
+	if seq, ok := asSequence(input); ok {
+		fmt.Println("tag1")
 		results, err = evalOverSequence(step, seq, env)
 	} else {
-		results, err = evalOverArray(step, data, env)
+		fmt.Println("tag2")
+		results, err = evalOverArray(step, input, env)
 	}
+	fmt.Println("evalPathStep", GetJsonIndent(step), GetJsonIndent(input), "results", GetJsonIndent(results))
 
 	if err != nil {
 		return undefined, err
 	}
 
 	if lastStep && len(results) == 1 && jtypes.IsArray(results[0]) {
+		fmt.Println("tag3")
 		return results[0], nil
 	}
 
@@ -255,6 +262,9 @@ func evalPathStep(step jparse.Node, data reflect.Value, env *environment, lastSt
 		}
 	}
 
+	fmt.Println("resultSequence", GetJsonIndent(resultSequence))
+	fmt.Println("evalPathStep end")
+	fmt.Println("")
 	if resultSequence.Len() == 0 {
 		return undefined, nil
 	}
@@ -283,12 +293,12 @@ func evalOverArray(node jparse.Node, data reflect.Value, env *environment) ([]re
 	return results, nil
 }
 
-func evalOverSequence(node jparse.Node, seq *sequence, env *environment) ([]reflect.Value, error) {
+func evalOverSequence(node jparse.Node, seq *Sequence, env *environment) ([]reflect.Value, error) {
 	var results []reflect.Value
 
-	for i, N := 0, len(seq.values); i < N; i++ {
+	for i, N := 0, len(seq.Values); i < N; i++ {
 
-		res, err := eval(node, reflect.ValueOf(seq.values[i]), env)
+		res, err := eval(node, reflect.ValueOf(seq.Values[i]), env)
 		if err != nil {
 			return nil, err
 		}
@@ -425,6 +435,7 @@ func evalArray(node *jparse.ArrayNode, data reflect.Value, env *environment) (re
 }
 
 func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (reflect.Value, error) {
+	fmt.Println("eval ObjectNode")
 	data = makeArray(data)
 
 	keys, err := groupItemsByKey(node, data, env)
@@ -432,6 +443,7 @@ func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (
 		return undefined, err
 	}
 
+	fmt.Println("keys", GetJsonIndent(keys))
 	nItems := data.Len()
 	results := make(map[string]interface{}, len(keys))
 
@@ -444,11 +456,13 @@ func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (
 				items.Index(i).Set(data.Index(j))
 			}
 		}
+		fmt.Println("items", idx.pair, GetJsonIndent(items), GetJsonIndent(node.Pairs[idx.pair][1]))
 
 		value, err := eval(node.Pairs[idx.pair][1], items, env)
 		if err != nil {
 			return undefined, err
 		}
+		fmt.Println("key", key, "value", GetJsonIndent(value))
 
 		if value.IsValid() && value.CanInterface() {
 			results[key] = value.Interface()
@@ -580,7 +594,7 @@ func evalWildcard(node *jparse.WildcardNode, data reflect.Value, env *environmen
 	return reflect.ValueOf(results), nil
 }
 
-func appendWildcard(seq *sequence, v reflect.Value) {
+func appendWildcard(seq *Sequence, v reflect.Value) {
 	switch {
 	case jtypes.IsArray(v):
 		v = flattenArray(v)
@@ -604,7 +618,7 @@ func evalDescendent(node *jparse.DescendentNode, data reflect.Value, env *enviro
 	return reflect.ValueOf(results), nil
 }
 
-func recurseDescendents(seq *sequence, v reflect.Value) {
+func recurseDescendents(seq *Sequence, v reflect.Value) {
 	if v.IsValid() && v.CanInterface() && !jtypes.IsArray(v) {
 		seq.Append(v.Interface())
 	}
@@ -1034,6 +1048,10 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 
 	}
 
+	fmt.Println("")
+	fmt.Println("evalComparisonOperator start")
+	fmt.Println("node type")
+
 	// Evaluate both sides and return any errors.
 	lhs, lhsNumber, lhsString, err := evaluate(node.LHS)
 	if err != nil {
@@ -1044,6 +1062,9 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 	if err != nil {
 		return undefined, err
 	}
+
+	fmt.Println(lhs, lhsNumber, lhsString)
+	fmt.Println(rhs, rhsNumber, rhsString)
 
 	// If this operator requires comparable types, return
 	// an error if a) either side is not comparable or b)
@@ -1088,6 +1109,7 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 	default:
 		panicf("unrecognised comparison operator %q", node.Type)
 	}
+	fmt.Println("evalComparisonOperator end")
 
 	return reflect.ValueOf(b), nil
 }
@@ -1314,53 +1336,73 @@ func panicf(format string, a ...interface{}) {
 
 // Sequence handling
 
-type sequence struct {
-	values         []interface{}
+type Sequence struct {
+	Values         []interface{}
 	keepSingletons bool
 }
 
-func newSequence(size int) *sequence {
-	return &sequence{
-		values: make([]interface{}, 0, size),
+func newSequence(size int) *Sequence {
+	return &Sequence{
+		Values: make([]interface{}, 0, size),
 	}
 }
 
-func (s *sequence) Len() int {
-	return len(s.values)
+func (s *Sequence) Len() int {
+	return len(s.Values)
 }
 
-func (s *sequence) Append(v interface{}) {
-	s.values = append(s.values, v)
+func (s *Sequence) Append(v interface{}) {
+	s.Values = append(s.Values, v)
 }
 
-func (s sequence) Value() reflect.Value {
-	switch n := len(s.values); {
+func (s Sequence) Value() reflect.Value {
+	switch n := len(s.Values); {
 	case n == 0:
 		return undefined
 	case n == 1 && !s.keepSingletons:
-		return reflect.ValueOf(s.values[0])
+		return reflect.ValueOf(s.Values[0])
 	default:
-		return reflect.ValueOf(s.values)
+		return reflect.ValueOf(s.Values)
 	}
 }
 
 var (
-	typeSequence    = reflect.TypeOf((*sequence)(nil)).Elem()
+	typeSequence    = reflect.TypeOf((*Sequence)(nil)).Elem()
 	typeSequencePtr = reflect.PtrTo(typeSequence)
 )
 
-func asSequence(v reflect.Value) (*sequence, bool) {
+func asSequence(v reflect.Value) (*Sequence, bool) {
 	if !v.IsValid() || !v.CanInterface() {
 		return nil, false
 	}
 
 	if v.Type() == typeSequencePtr {
-		return v.Interface().(*sequence), true
+		return v.Interface().(*Sequence), true
 	}
 
 	if jtypes.Resolve(v).Type() == typeSequence && v.CanAddr() {
-		return v.Addr().Interface().(*sequence), true
+		return v.Addr().Interface().(*Sequence), true
 	}
 
 	return nil, false
+}
+
+func GetJsonIndent(data interface{}) string {
+	switch data.(type) {
+	case reflect.Value:
+		data = data.(reflect.Value).Interface()
+	case []reflect.Value:
+		// convert []reflect.Value to []interface{}
+		values := data.([]reflect.Value)
+		data = make([]interface{}, len(values))
+		for i, v := range values {
+			data.([]interface{})[i] = v.Interface()
+		}
+	}
+	out, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		fmt.Println("GetJsonIndent error:", err)
+		return ""
+	}
+	return string(out)
 }

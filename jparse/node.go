@@ -5,6 +5,7 @@
 package jparse
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"regexp/syntax"
@@ -1271,9 +1272,10 @@ func parseConditional(p *parser, t token, lhs Node) (Node, error) {
 	}
 
 	return &ConditionalNode{
-		If:   lhs,
-		Then: rhs,
-		Else: els,
+		NodeType: "ConditionalNode",
+		If:       lhs,
+		Then:     rhs,
+		Else:     els,
 	}, nil
 }
 
@@ -1471,10 +1473,15 @@ func (op ComparisonOperator) String() string {
 	}
 }
 
+// implement json marshal interface
+func (op ComparisonOperator) MarshalJSON() ([]byte, error) {
+	return json.Marshal(op.String())
+}
+
 // A ComparisonOperatorNode represents a comparison operation.
 type ComparisonOperatorNode struct {
 	NodeType string
-	Type     ComparisonOperator `json:"-"`
+	Type     ComparisonOperator
 	LHS      Node
 	RHS      Node
 }
