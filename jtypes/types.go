@@ -11,7 +11,25 @@ import (
 	"reflect"
 )
 
-var undefined reflect.Value
+var undefined reflect.Value // TODO: 这里的定义与 eval 文件的 undefined 重复了，可以抽离到一个公共文件
+
+type TransCtx struct {
+	Scene string
+}
+
+var NoMatchedCtx = TransCtx{
+	Scene: "NoMatched",
+}
+
+func IsEqual(v reflect.Value, target interface{}) bool {
+	if !v.IsValid() {
+		return target == nil
+	}
+	if target == nil {
+		return !v.IsValid() || v.IsNil()
+	}
+	return v.Interface() == target
+}
 
 var (
 	typeBool    = reflect.TypeOf((*bool)(nil)).Elem()

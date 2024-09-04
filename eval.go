@@ -16,7 +16,7 @@ import (
 	"github.com/blues/jsonata-go/jtypes"
 )
 
-var undefined reflect.Value
+var undefined reflect.Value // TODO: 这里是否可以用其它方式代替
 
 var typeInterfaceSlice = reflect.SliceOf(jtypes.TypeInterface)
 
@@ -224,6 +224,7 @@ func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastS
 	fmt.Println("")
 	fmt.Println("evalPathStep start")
 	// TODO: 不知道为什么要转成列表，似乎可以直接取值就行
+	// 似乎只需要在最后做类型转换就行，无论是数组还是二维数组
 	if seq, ok := asSequence(input); ok {
 		fmt.Println("tag1")
 		results, err = evalOverSequence(step, seq, env)
@@ -263,11 +264,15 @@ func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastS
 	}
 
 	fmt.Println("resultSequence", GetJsonIndent(resultSequence))
+
+	if resultSequence.Len() == 0 {
+		fmt.Println("return undefined")
+		fmt.Println("evalPathStep end")
+		fmt.Println("")
+		return reflect.ValueOf(jtypes.NoMatchedCtx), nil
+	}
 	fmt.Println("evalPathStep end")
 	fmt.Println("")
-	if resultSequence.Len() == 0 {
-		return undefined, nil
-	}
 
 	return reflect.ValueOf(resultSequence), nil
 }
@@ -896,17 +901,21 @@ func evalFunctionCall(node *jparse.FunctionCallNode, data reflect.Value, env *en
 	}
 
 	fn, ok := jtypes.AsCallable(v)
+	fmt.Println("")
+	fmt.Println("evalFunctionCall", ok, v, fn)
 	if !ok {
 		return undefined, newEvalError(ErrNonCallable, node.Func, nil)
 	}
 
 	if setter, ok := fn.(nameSetter); ok {
 		if sym, ok := node.Func.(*jparse.VariableNode); ok {
+			fmt.Println("sym", sym.Name)
 			setter.SetName(sym.Name)
 		}
 	}
 
 	if setter, ok := fn.(contextSetter); ok {
+		fmt.Println("data", GetJsonIndent(data))
 		setter.SetContext(data)
 	}
 
@@ -917,9 +926,12 @@ func evalFunctionCall(node *jparse.FunctionCallNode, data reflect.Value, env *en
 		if err != nil {
 			return undefined, err
 		}
+		fmt.Println(i, "arg", GetJsonIndent(arg), "v", GetJsonIndent(v))
 
 		argv[i] = v
 	}
+	fmt.Println("argv", GetJsonIndent(argv))
+	fmt.Println("")
 
 	return fn.Call(argv)
 }
@@ -1390,12 +1402,23 @@ func asSequence(v reflect.Value) (*Sequence, bool) {
 func GetJsonIndent(data interface{}) string {
 	switch data.(type) {
 	case reflect.Value:
+		// check if data is zero
+		if data == reflect.ValueOf(nil) {
+			return "null"
+		}
 		data = data.(reflect.Value).Interface()
 	case []reflect.Value:
+		// check if data is zero
 		// convert []reflect.Value to []interface{}
 		values := data.([]reflect.Value)
 		data = make([]interface{}, len(values))
 		for i, v := range values {
+			if v == reflect.ValueOf(nil) {
+				continue
+			}
+			if v.IsZero() || !v.CanInterface() {
+				continue
+			}
 			data.([]interface{})[i] = v.Interface()
 		}
 	}

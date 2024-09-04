@@ -27,17 +27,11 @@ import (
 // })`
 
 const rule = `
-age < 50 ? "young" : "old"`
+$not(nothing)`
 
 const inputStr = `
 {
-    "original_person": {
-        "gender": 1,
-		"addr":{"line": "qz01"}
-    },
-    "name": "qz",
-    "age": 3,
-    "sex": "male"
+  "nothing": null
 }
 `
 
@@ -62,7 +56,7 @@ func main() {
 	expression := jsonata.MustCompile(rule)
 	result, err := expression.Eval(input)
 	if err != nil {
-		panic(err)
+		fmt.Println("eval err", err)
 	}
 	out, err = json.MarshalIndent(result, "", "  ")
 	fmt.Println(string(out))

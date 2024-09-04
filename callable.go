@@ -213,7 +213,7 @@ func (c *goCallable) ParamCount() int {
 }
 
 func (c *goCallable) Call(argv []reflect.Value) (reflect.Value, error) {
-
+	fmt.Println("goCallable.Call")
 	var err error
 
 	argv, err = c.validateArgCount(argv)
@@ -237,6 +237,25 @@ func (c *goCallable) Call(argv []reflect.Value) (reflect.Value, error) {
 			err = nil
 		}
 		return undefined, err
+	}
+	fmt.Println("goCallable.Call results[0]:", results[0])
+	fmt.Println("goCallable.Call end")
+
+	fmt.Println("type", results[0].Type().String())
+	// 这里统一对函数的输出检查一下，看类型是否 BoolEx
+	if results[0].IsValid() {
+		fmt.Println()
+		switch results[0].Type().String() {
+		case "jlib.BoolEx":
+			boolEx := results[0].Interface().(jlib.BoolEx)
+			if boolEx.Ctx == jtypes.NoMatchedCtx {
+				fmt.Println("get NoMatched 2")
+				return undefined, nil
+			} else {
+				return reflect.ValueOf(boolEx.Data), nil
+			}
+		}
+
 	}
 
 	return results[0], nil

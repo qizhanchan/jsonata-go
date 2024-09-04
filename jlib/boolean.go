@@ -5,6 +5,7 @@
 package jlib
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/blues/jsonata-go/jtypes"
@@ -12,6 +13,9 @@ import (
 
 // Boolean (golint)
 func Boolean(v reflect.Value) bool {
+	if v == reflect.ValueOf(nil) {
+		fmt.Println("jlib.Boolean undefined")
+	}
 
 	v = jtypes.Resolve(v)
 
@@ -44,11 +48,30 @@ func Boolean(v reflect.Value) bool {
 }
 
 // Not (golint)
-func Not(v reflect.Value) bool {
-	return !Boolean(v)
+func Not(v reflect.Value) BoolEx {
+	// check if v is jtypes.NoMatched
+	if jtypes.IsEqual(v, jtypes.NoMatchedCtx) {
+		fmt.Println("get NoMatched 1")
+		return BoolEx{Data: false, Ctx: jtypes.NoMatchedCtx}
+	}
+
+	// if !v.IsZero() && v.Interface() == jtypes.NoMatchedCtx {
+	// 	fmt.Println("get NoMatched")
+	// 	boolEx := BoolEx{Data: false, NoMatch: true}
+	// 	return boolEx
+	// }
+
+	res := !Boolean(v)
+	boolEx := BoolEx{Data: res}
+	return boolEx
 }
 
 // Exists (golint)
 func Exists(v reflect.Value) bool {
 	return v.IsValid()
+}
+
+type BoolEx struct {
+	Data bool
+	Ctx  jtypes.TransCtx
 }
