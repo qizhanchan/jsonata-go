@@ -5,7 +5,6 @@
 package jsonata
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -14,6 +13,7 @@ import (
 	"github.com/blues/jsonata-go/jlib"
 	"github.com/blues/jsonata-go/jparse"
 	"github.com/blues/jsonata-go/jtypes"
+	"github.com/blues/jsonata-go/utils"
 )
 
 var undefined reflect.Value // TODO: 这里是否可以用其它方式代替
@@ -209,10 +209,15 @@ func evalPath(node *jparse.PathNode, input reflect.Value, env *environment) (ref
 	}
 
 	if node.KeepArrays {
-		if seq, ok := asSequence(output); ok {
-			seq.keepSingletons = true
-			return reflect.ValueOf(seq), nil
-		}
+		utils.Log("结果似乎要转成列表", "output", utils.GetJsonIndent(output), "\n")
+		output2 := reflect.MakeSlice(typeInterfaceSlice, 1, 1)
+		output2.Index(0).Set(output)
+		output = output2
+		// if seq, ok := asSequence(output); ok {
+		// 	utils.Log("单例")
+		// 	seq.keepSingletons = true
+		// 	return reflect.ValueOf(seq), nil
+		// }
 	}
 
 	return output, nil
@@ -221,25 +226,25 @@ func evalPath(node *jparse.PathNode, input reflect.Value, env *environment) (ref
 func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastStep bool) (reflect.Value, error) {
 	var err error
 	var results []reflect.Value
-	fmt.Println("")
-	fmt.Println("evalPathStep start")
+	utils.Log("")
+	utils.Log("evalPathStep start")
 	// TODO: 不知道为什么要转成列表，似乎可以直接取值就行
 	// 似乎只需要在最后做类型转换就行，无论是数组还是二维数组
 	if seq, ok := asSequence(input); ok {
-		fmt.Println("tag1")
+		utils.Log("tag1")
 		results, err = evalOverSequence(step, seq, env)
 	} else {
-		fmt.Println("tag2")
+		utils.Log("tag2")
 		results, err = evalOverArray(step, input, env)
 	}
-	fmt.Println("evalPathStep", GetJsonIndent(step), GetJsonIndent(input), "results", GetJsonIndent(results))
+	utils.Log("evalPathStep", utils.GetJsonIndent(step), utils.GetJsonIndent(input), "results", utils.GetJsonIndent(results))
 
 	if err != nil {
 		return undefined, err
 	}
 
 	if lastStep && len(results) == 1 && jtypes.IsArray(results[0]) {
-		fmt.Println("tag3")
+		utils.Log("tag3")
 		return results[0], nil
 	}
 
@@ -263,16 +268,16 @@ func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastS
 		}
 	}
 
-	fmt.Println("resultSequence", GetJsonIndent(resultSequence))
+	utils.Log("resultSequence", utils.GetJsonIndent(resultSequence))
 
 	if resultSequence.Len() == 0 {
-		fmt.Println("return undefined")
-		fmt.Println("evalPathStep end")
-		fmt.Println("")
+		utils.Log("return undefined")
+		utils.Log("evalPathStep end")
+		utils.Log("")
 		return reflect.ValueOf(jtypes.NoMatchedCtx), nil
 	}
-	fmt.Println("evalPathStep end")
-	fmt.Println("")
+	utils.Log("evalPathStep end")
+	utils.Log("")
 
 	return reflect.ValueOf(resultSequence), nil
 }
@@ -440,7 +445,7 @@ func evalArray(node *jparse.ArrayNode, data reflect.Value, env *environment) (re
 }
 
 func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (reflect.Value, error) {
-	fmt.Println("eval ObjectNode")
+	utils.Log("eval ObjectNode")
 	data = makeArray(data)
 
 	keys, err := groupItemsByKey(node, data, env)
@@ -448,7 +453,7 @@ func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (
 		return undefined, err
 	}
 
-	fmt.Println("keys", GetJsonIndent(keys))
+	utils.Log("keys", utils.GetJsonIndent(keys))
 	nItems := data.Len()
 	results := make(map[string]interface{}, len(keys))
 
@@ -461,13 +466,13 @@ func evalObject(node *jparse.ObjectNode, data reflect.Value, env *environment) (
 				items.Index(i).Set(data.Index(j))
 			}
 		}
-		fmt.Println("items", idx.pair, GetJsonIndent(items), GetJsonIndent(node.Pairs[idx.pair][1]))
+		utils.Log("items", idx.pair, utils.GetJsonIndent(items), utils.GetJsonIndent(node.Pairs[idx.pair][1]))
 
 		value, err := eval(node.Pairs[idx.pair][1], items, env)
 		if err != nil {
 			return undefined, err
 		}
-		fmt.Println("key", key, "value", GetJsonIndent(value))
+		utils.Log("key", key, "value", utils.GetJsonIndent(value))
 
 		if value.IsValid() && value.CanInterface() {
 			results[key] = value.Interface()
@@ -537,7 +542,7 @@ func groupItemsByKey(obj *jparse.ObjectNode, items reflect.Value, env *environme
 }
 
 func evalBlock(node *jparse.BlockNode, data reflect.Value, env *environment) (reflect.Value, error) {
-	fmt.Println("eval BlockNode")
+	utils.Log("eval BlockNode")
 	var err error
 	var res reflect.Value
 
@@ -901,21 +906,21 @@ func evalFunctionCall(node *jparse.FunctionCallNode, data reflect.Value, env *en
 	}
 
 	fn, ok := jtypes.AsCallable(v)
-	fmt.Println("")
-	fmt.Println("evalFunctionCall", ok, v, fn)
+	utils.Log("")
+	utils.Log("evalFunctionCall", ok, v, fn)
 	if !ok {
 		return undefined, newEvalError(ErrNonCallable, node.Func, nil)
 	}
 
 	if setter, ok := fn.(nameSetter); ok {
 		if sym, ok := node.Func.(*jparse.VariableNode); ok {
-			fmt.Println("sym", sym.Name)
+			utils.Log("sym", sym.Name)
 			setter.SetName(sym.Name)
 		}
 	}
 
 	if setter, ok := fn.(contextSetter); ok {
-		fmt.Println("data", GetJsonIndent(data))
+		utils.Log("data", utils.GetJsonIndent(data))
 		setter.SetContext(data)
 	}
 
@@ -926,12 +931,12 @@ func evalFunctionCall(node *jparse.FunctionCallNode, data reflect.Value, env *en
 		if err != nil {
 			return undefined, err
 		}
-		fmt.Println(i, "arg", GetJsonIndent(arg), "v", GetJsonIndent(v))
+		utils.Log(i, "arg", utils.GetJsonIndent(arg), "v", utils.GetJsonIndent(v))
 
 		argv[i] = v
 	}
-	fmt.Println("argv", GetJsonIndent(argv))
-	fmt.Println("")
+	utils.Log("argv", utils.GetJsonIndent(argv))
+	utils.Log("")
 
 	return fn.Call(argv)
 }
@@ -1060,9 +1065,9 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 
 	}
 
-	fmt.Println("")
-	fmt.Println("evalComparisonOperator start")
-	fmt.Println("node type")
+	utils.Log("")
+	utils.Log("evalComparisonOperator start")
+	utils.Log("node type", node.Type)
 
 	// Evaluate both sides and return any errors.
 	lhs, lhsNumber, lhsString, err := evaluate(node.LHS)
@@ -1074,9 +1079,6 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 	if err != nil {
 		return undefined, err
 	}
-
-	fmt.Println(lhs, lhsNumber, lhsString)
-	fmt.Println(rhs, rhsNumber, rhsString)
 
 	// If this operator requires comparable types, return
 	// an error if a) either side is not comparable or b)
@@ -1121,7 +1123,7 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 	default:
 		panicf("unrecognised comparison operator %q", node.Type)
 	}
-	fmt.Println("evalComparisonOperator end")
+	utils.Log("evalComparisonOperator end")
 
 	return reflect.ValueOf(b), nil
 }
@@ -1215,6 +1217,16 @@ func evalBooleanOperator(node *jparse.BooleanOperatorNode, data reflect.Value, e
 	lhs, err := eval(node.LHS, data, env)
 	if err != nil {
 		return undefined, err
+	}
+
+	// 如果 lhs 为 true，逻辑或的时候，则可以直接返回 true
+	if node.Type == jparse.BooleanOr && jlib.Boolean(lhs) {
+		return reflect.ValueOf(true), nil
+	}
+
+	// 如果 lhs 为 false，逻辑与的时候，则可以直接返回 false
+	if node.Type == jparse.BooleanAnd && !jlib.Boolean(lhs) {
+		return reflect.ValueOf(false), nil
 	}
 
 	rhs, err := eval(node.RHS, data, env)
@@ -1397,35 +1409,4 @@ func asSequence(v reflect.Value) (*Sequence, bool) {
 	}
 
 	return nil, false
-}
-
-func GetJsonIndent(data interface{}) string {
-	switch data.(type) {
-	case reflect.Value:
-		// check if data is zero
-		if data == reflect.ValueOf(nil) {
-			return "null"
-		}
-		data = data.(reflect.Value).Interface()
-	case []reflect.Value:
-		// check if data is zero
-		// convert []reflect.Value to []interface{}
-		values := data.([]reflect.Value)
-		data = make([]interface{}, len(values))
-		for i, v := range values {
-			if v == reflect.ValueOf(nil) {
-				continue
-			}
-			if v.IsZero() || !v.CanInterface() {
-				continue
-			}
-			data.([]interface{})[i] = v.Interface()
-		}
-	}
-	out, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		fmt.Println("GetJsonIndent error:", err)
-		return ""
-	}
-	return string(out)
 }

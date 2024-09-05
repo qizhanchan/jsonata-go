@@ -27,12 +27,15 @@ import (
 // })`
 
 const rule = `
-$not(nothing)`
+/* header comment */
+1 + 1
+
+`
 
 const inputStr = `
 {
-  "nothing": null
-}
+
+    }
 `
 
 func main() {

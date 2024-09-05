@@ -5,16 +5,16 @@
 package jlib
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/blues/jsonata-go/jtypes"
+	"github.com/blues/jsonata-go/utils"
 )
 
 // Boolean (golint)
 func Boolean(v reflect.Value) bool {
 	if v == reflect.ValueOf(nil) {
-		fmt.Println("jlib.Boolean undefined")
+		utils.Log("jlib.Boolean undefined")
 	}
 
 	v = jtypes.Resolve(v)
@@ -51,12 +51,12 @@ func Boolean(v reflect.Value) bool {
 func Not(v reflect.Value) BoolEx {
 	// check if v is jtypes.NoMatched
 	if jtypes.IsEqual(v, jtypes.NoMatchedCtx) {
-		fmt.Println("get NoMatched 1")
+		utils.Log("get NoMatched 1")
 		return BoolEx{Data: false, Ctx: jtypes.NoMatchedCtx}
 	}
 
 	// if !v.IsZero() && v.Interface() == jtypes.NoMatchedCtx {
-	// 	fmt.Println("get NoMatched")
+	// 	Log("get NoMatched")
 	// 	boolEx := BoolEx{Data: false, NoMatch: true}
 	// 	return boolEx
 	// }
