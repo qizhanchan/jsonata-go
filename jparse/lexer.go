@@ -61,6 +61,8 @@ const (
 	typeAnd
 	typeOr
 	typeIn
+
+	typeComment
 )
 
 func (tt tokenType) String() string {
@@ -81,6 +83,8 @@ func (tt tokenType) String() string {
 		return "(variable)"
 	case typeRegex:
 		return "(regex)"
+	case typeComment:
+		return "(comment)"
 	default:
 		if s := symbolsAndKeywords[tt]; s != "" {
 			return s
@@ -217,8 +221,22 @@ func (l *lexer) next(allowRegex bool) token {
 		return l.eof()
 	}
 
+	// 如果下一个字符是*，则是注释
+	if ch == '/' && l.acceptRune('*') {
+		// utils.Log("注释")
+		l.ignore()
+		l.scanComment()
+		l.skipWhitespace()
+		ch = l.nextRune()
+		if ch == eof {
+			return l.eof()
+		}
+	}
+
+	// 可能是正则表达式 /ab/i，也有可能是注释 /* */
 	if allowRegex && ch == '/' {
 		l.ignore()
+
 		return l.scanRegex(ch)
 	}
 
@@ -320,6 +338,19 @@ Loop:
 	l.acceptRune(quote)
 	l.ignore()
 	return t
+}
+
+func (l *lexer) scanComment() {
+Loop:
+	for {
+		switch l.nextRune() {
+		case '*':
+			if r := l.nextRune(); r == '/' {
+				break Loop
+			}
+		}
+	}
+	l.ignore()
 }
 
 // scanNumber reads a number literal from the current position

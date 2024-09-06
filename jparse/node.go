@@ -13,6 +13,8 @@ import (
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
+
+	"github.com/blues/jsonata-go/utils"
 )
 
 // Node represents an individual node in a syntax tree.
@@ -51,6 +53,34 @@ func (n *StringNode) optimize() (Node, error) {
 
 func (n StringNode) String() string {
 	return fmt.Sprintf(" string node: %q", n.Value)
+}
+
+type CommentNode struct {
+	StringNode
+	IsComment bool
+}
+
+func parseComment(p *parser, t token) (Node, error) {
+
+	s, ok := unescape(t.Value)
+	utils.Log("parseComment", s)
+	if !ok {
+		typ := ErrIllegalEscape
+		if len(s) > 0 && s[0] == 'u' {
+			typ = ErrIllegalEscapeHex
+		}
+
+		return nil, newErrorHint(typ, t, s)
+	}
+
+	return &CommentNode{
+		StringNode: StringNode{
+			NodeType: "CommentNode",
+			Value:    s,
+		},
+		IsComment: true,
+	}, nil
+
 }
 
 // A NumberNode represents a number literal.
@@ -155,7 +185,7 @@ func parseRegex(p *parser, t token) (Node, error) {
 		if e, ok := err.(*syntax.Error); ok {
 			hint = string(e.Code)
 		}
-
+		utils.Log("regex tag")
 		return nil, newErrorHint(ErrInvalidRegex, t, hint)
 	}
 

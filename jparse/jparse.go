@@ -4,6 +4,20 @@
 
 package jparse
 
+import (
+	"github.com/blues/jsonata-go/utils"
+)
+
+// nud (null denotation):
+// nud 是一个函数，用于处理前缀位置的 token。它将 token 转换为一个节点，表示该 token 的值。
+// 例如，数字、字符串、数组、对象等简单值，以及前缀操作符（如负号）。
+// led (left denotation):
+// led 是一个函数，用于处理中缀位置的 token。它将 token 和左侧的节点结合起来，表示中缀操作。
+// 例如，数学运算符、函数调用、数组索引等。
+// bp (binding power):
+// bp 是一个整数，表示中缀操作符的绑定权重（即操作符的优先级）。
+// 解析器根据绑定权重决定如何解析表达式，确保操作符按正确的优先级进行解析。
+
 // The JSONata parser is based on Pratt's Top Down Operator
 // Precededence algorithm (see https://tdop.github.io/). Given
 // a series of tokens representing a JSONata expression and the
@@ -63,7 +77,7 @@ var nuds = [...]nud{
 var leds = [...]led{
 	typeParenOpen:    parseFunctionCall, // 小括号
 	typeBracketOpen:  parsePredicate,    // 中括号
-	typeBraceOpen:    parseGroup,        // 打括号
+	typeBraceOpen:    parseGroup,        // 大括号
 	typeCondition:    parseConditional,  // 三元操作
 	typeAssign:       parseAssignment,
 	typeApply:        parseFunctionApplication,
@@ -231,6 +245,7 @@ func newParser(input string) parser {
 
 	// Set current token to the first token in the expression.
 	p.advance(true)
+	// utils.Log("first token", p.token.Type)
 	return p
 }
 
@@ -249,10 +264,17 @@ func (p *parser) parseExpression(rbp int) Node {
 	if p.token.Type == typeEOF {
 		panic(newError(ErrUnexpectedEOF, p.token))
 	}
-
+	utils.Log("token type >", rbp, p.token.Type)
 	t := p.token
-	p.advance(false)
 
+	// 如果当前节点是一个注释，那么就需要加一个空节点，不用继续解析
+	if t.Type == typeComment {
+		p.token = token{Type: typeComment, Value: ""}
+	} else {
+		p.advance(false)
+	}
+
+	utils.Log("next token type", rbp, t.Type, t.Value, p.token.Type)
 	nud := p.lookupNud(t.Type)
 	if nud == nil {
 		panic(newError(ErrPrefix, t))
@@ -263,6 +285,7 @@ func (p *parser) parseExpression(rbp int) Node {
 		panic(err)
 	}
 
+	utils.Log("lhs type", utils.GetJsonIndent(lhs), p.token.Type, p.lookupBp(p.token.Type))
 	for rbp < p.lookupBp(p.token.Type) {
 
 		t := p.token

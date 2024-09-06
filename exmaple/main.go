@@ -28,13 +28,13 @@ import (
 
 const rule = `
 /* header comment */
-1 + 1
-
+{"var_a": a}
+/* header comment */
 `
 
 const inputStr = `
 {
-
+"a":1
     }
 `
 

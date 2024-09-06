@@ -994,7 +994,6 @@ func evalNumericOperator(node *jparse.NumericOperatorNode, data reflect.Value, e
 		if err != nil || v == undefined {
 			return 0, false, false, err
 		}
-
 		n, isNum := jtypes.AsNumber(v)
 		return n, true, isNum, nil
 	}
@@ -1012,6 +1011,8 @@ func evalNumericOperator(node *jparse.NumericOperatorNode, data reflect.Value, e
 
 	// Return an error if either side is not a number.
 	if lhsOK && !lhsNumber {
+		utils.Log("lhs", utils.GetJsonIndent(node.LHS), lhs, lhsOK, lhsNumber)
+		utils.Log("rhs", utils.GetJsonIndent(node.RHS), rhs, rhsOK, rhsNumber)
 		return undefined, newEvalError(ErrNonNumberLHS, node.LHS, node.Type)
 	}
 

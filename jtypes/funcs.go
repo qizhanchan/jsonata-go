@@ -109,7 +109,6 @@ func AsString(v reflect.Value) (string, bool) {
 // AsNumber (golint)
 func AsNumber(v reflect.Value) (float64, bool) {
 	v = Resolve(v)
-
 	switch {
 	case isFloat(v):
 		return v.Float(), true
