@@ -223,14 +223,15 @@ func evalPath(node *jparse.PathNode, input reflect.Value, env *environment) (ref
 
 	if node.KeepArrays {
 		utils.Log("结果似乎要转成列表", "output", utils.GetJsonIndent(output), "\n")
-		output2 := reflect.MakeSlice(typeInterfaceSlice, 1, 1)
-		output2.Index(0).Set(output)
-		output = output2
-		// if seq, ok := asSequence(output); ok {
-		// 	utils.Log("单例")
-		// 	seq.keepSingletons = true
-		// 	return reflect.ValueOf(seq), nil
-		// }
+		if seq, ok := asSequence(output); ok {
+			utils.Log("单例")
+			seq.keepSingletons = true
+			return reflect.ValueOf(seq), nil
+		} else {
+			output2 := reflect.MakeSlice(typeInterfaceSlice, 1, 1)
+			output2.Index(0).Set(output)
+			output = output2
+		}
 	}
 
 	return output, nil

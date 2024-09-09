@@ -27,15 +27,40 @@ import (
 // })`
 
 const rule = `
-phone[0]
+a[0].b
 `
 
 const inputStr = `
-[[[
-            {"phone": [{"number" : 0}]},
-            {"phone": [{"number" : 1}]},
-            {"phone": [{"number" : 2}]}
-        ]]]
+[
+        {
+            "a": [
+                {
+                    "b": [
+                        1
+                    ]
+                },
+                {
+                    "b": [
+                        2
+                    ]
+                }
+            ]
+        },
+        {
+            "a": [
+                {
+                    "b": [
+                        3
+                    ]
+                },
+                {
+                    "b": [
+                        4
+                    ]
+                }
+            ]
+        }
+    ]
 `
 
 func main() {
