@@ -31,11 +31,11 @@ phone[0]
 `
 
 const inputStr = `
-[
+[[[
             {"phone": [{"number" : 0}]},
             {"phone": [{"number" : 1}]},
             {"phone": [{"number" : 2}]}
-        ]
+        ]]]
 `
 
 func main() {

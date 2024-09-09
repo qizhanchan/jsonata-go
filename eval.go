@@ -151,8 +151,9 @@ func evalName(node *jparse.NameNode, data reflect.Value, env *environment) (refl
 }
 
 func evalNameArray(node *jparse.NameNode, data reflect.Value, env *environment) (reflect.Value, error) {
+	// utils.Log("evalNameArray")
 	n := data.Len()
-	results := newSequence(n)
+	results := make([]interface{}, 0, n)
 
 	for i := 0; i < n; i++ {
 
@@ -162,9 +163,18 @@ func evalNameArray(node *jparse.NameNode, data reflect.Value, env *environment) 
 		}
 
 		if v.IsValid() && v.CanInterface() {
-			results.Append(v.Interface())
+			// check if v is array, just extend results, else append v to results
+			if jtypes.IsArray(v) {
+				// utils.Log("extend result")
+				results = append(results, v.Interface().([]interface{})...)
+			} else {
+				// utils.Log("append result", v.Kind(), utils.GetJsonIndent(v), utils.GetJsonIndent(results))
+				results = append(results, v.Interface())
+			}
+
 		}
 	}
+	utils.Log("evalNameArray result", utils.GetJsonIndent(results), "\n")
 
 	return reflect.ValueOf(results), nil
 }
@@ -289,9 +299,44 @@ func evalOverArray(node jparse.Node, data reflect.Value, env *environment) ([]re
 	var results []reflect.Value
 
 	// 当前的逻辑是，如果是数组，就遍历数组，如果是对象，就遍历对象的值
-	// 但是对于 PredicateNode, 是要先执行 Exprs, 再执行 Filters
+	// 对于数组的 PredicateNode, 是要先执行 Exprs, 再执行 Filters
+	if pred, ok := node.(*jparse.PredicateNode); ok {
+		items, err := eval(pred.Expr, data, env)
+		if err != nil || items == undefined {
+			return results, err
+		}
+
+		utils.Log("after expr eval", utils.GetJsonIndent(items), utils.GetJsonIndent(data))
+
+		for _, filter := range pred.Filters {
+			// TODO: If this filter is of type *jparse.NumberNode,
+
+			utils.Log("before filter item", utils.GetJsonIndent(items))
+
+			items, err = applyFilter(filter, arrayify(items), env)
+			if err != nil {
+				return results, err
+			}
+			utils.Log("after filter item", utils.GetJsonIndent(items))
+
+			if items.Len() == 0 {
+				items = undefined
+				break
+			}
+		}
+
+		res := normalizeArray(items)
+		if res.IsValid() {
+			if results == nil {
+				results = make([]reflect.Value, 0, data.Len())
+			}
+			results = append(results, res)
+		}
+		return results, nil
+	}
+
 	for i, N := 0, data.Len(); i < N; i++ {
-		utils.Log("evalOverArray", "i", i)
+		utils.Log("evalOverArray", "i", i, utils.GetJsonIndent(node), utils.GetJsonIndent(data.Index(i)))
 		res, err := eval(node, data.Index(i), env)
 		if err != nil {
 			return nil, err
@@ -658,7 +703,7 @@ func evalPredicate(node *jparse.PredicateNode, data reflect.Value, env *environm
 		return undefined, err
 	}
 
-	utils.Log("before filter", utils.GetJsonIndent(items), utils.GetJsonIndent(data))
+	utils.Log("origin before filter", utils.GetJsonIndent(items), utils.GetJsonIndent(data))
 
 	for _, filter := range node.Filters {
 
@@ -666,13 +711,13 @@ func evalPredicate(node *jparse.PredicateNode, data reflect.Value, env *environm
 		// we should access the indexed item directly instead
 		// of calling applyFilter.
 
-		utils.Log("before filter item", utils.GetJsonIndent(items))
+		utils.Log("origin before filter item", utils.GetJsonIndent(items))
 
 		items, err = applyFilter(filter, arrayify(items), env)
 		if err != nil {
 			return undefined, err
 		}
-		utils.Log("after filter item", utils.GetJsonIndent(items))
+		utils.Log("origin after filter item", utils.GetJsonIndent(items))
 
 		if items.Len() == 0 {
 			items = undefined
