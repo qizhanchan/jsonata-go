@@ -27,40 +27,16 @@ import (
 // })`
 
 const rule = `
-a[0].b
+$assert(Account < 35, 'Too Expensive')
+
 `
 
 const inputStr = `
-[
-        {
-            "a": [
-                {
-                    "b": [
-                        1
-                    ]
-                },
-                {
-                    "b": [
-                        2
-                    ]
-                }
-            ]
-        },
-        {
-            "a": [
-                {
-                    "b": [
-                        3
-                    ]
-                },
-                {
-                    "b": [
-                        4
-                    ]
-                }
-            ]
-        }
-    ]
+{
+    "Account": 2
+}
+
+
 `
 
 func main() {

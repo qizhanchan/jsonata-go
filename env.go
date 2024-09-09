@@ -263,6 +263,11 @@ var baseEnv = initBaseEnv(map[string]Extension{
 		UndefinedHandler:   nil,
 		EvalContextHandler: nil,
 	},
+	"assert": {
+		Func:               jlib.Assert,
+		UndefinedHandler:   nil,
+		EvalContextHandler: defaultContextHandler,
+	},
 
 	// Array functions
 

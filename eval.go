@@ -94,6 +94,13 @@ func eval(node jparse.Node, input reflect.Value, env *environment) (reflect.Valu
 		return undefined, err
 	}
 
+	// check if return is err
+	if v.IsValid() && v.CanInterface() {
+		if resErr, ok := v.Interface().(error); ok {
+			return undefined, resErr
+		}
+	}
+
 	if seq, ok := asSequence(v); ok {
 		v = seq.Value()
 	}
@@ -609,6 +616,13 @@ func evalBlock(node *jparse.BlockNode, data reflect.Value, env *environment) (re
 		// print node type
 		// fmt.Printf("%#+v", node)
 		res, err = eval(node, data, env)
+		// check if res is err
+		if res.IsValid() && res.CanInterface() {
+			if resErr, ok := res.Interface().(error); ok {
+				return undefined, resErr
+			}
+		}
+		utils.Log("eval BlockNode", res, res.IsValid(), res.CanInterface())
 		if err != nil {
 			return undefined, err
 		}

@@ -5,6 +5,7 @@
 package jlib
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/blues/jsonata-go/jtypes"
@@ -68,4 +69,24 @@ func Exists(v reflect.Value) bool {
 type BoolEx struct {
 	Data bool
 	Ctx  jtypes.TransCtx
+}
+
+// Assert (golint)
+func Assert(v1, v2 reflect.Value) interface{} {
+	utils.Log("Assert", utils.GetJsonIndent(v1), utils.GetJsonIndent(v2))
+	if b, ok := jtypes.AsBool(v1); ok {
+		if b {
+			str, ok := jtypes.AsString(v2)
+			if !ok {
+				return errors.New("assert 2nd argument is not string")
+			}
+			utils.Log("return err string")
+			return errors.New(str)
+		} else {
+			return nil
+		}
+	} else {
+		panic("Assert error, need bool as 1st argument")
+	}
+	return nil
 }
