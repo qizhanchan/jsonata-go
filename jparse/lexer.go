@@ -213,7 +213,7 @@ func newLexer(input string) lexer {
 // the lexer will treat a forward slash like a regular
 // expression.
 func (l *lexer) next(allowRegex bool) token {
-
+start:
 	l.skipWhitespace()
 
 	ch := l.nextRune()
@@ -226,11 +226,7 @@ func (l *lexer) next(allowRegex bool) token {
 		// utils.Log("注释")
 		l.ignore()
 		l.scanComment()
-		l.skipWhitespace()
-		ch = l.nextRune()
-		if ch == eof {
-			return l.eof()
-		}
+		goto start
 	}
 
 	// 可能是正则表达式 /ab/i，也有可能是注释 /* */

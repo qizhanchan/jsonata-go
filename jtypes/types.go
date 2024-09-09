@@ -21,6 +21,10 @@ var NoMatchedCtx = TransCtx{
 	Scene: "NoMatched",
 }
 
+var NullCtx = TransCtx{
+	Scene: "Null",
+}
+
 func IsEqual(v reflect.Value, target interface{}) bool {
 	if !v.IsValid() {
 		return target == nil

@@ -55,12 +55,6 @@ func Not(v reflect.Value) BoolEx {
 		return BoolEx{Data: false, Ctx: jtypes.NoMatchedCtx}
 	}
 
-	// if !v.IsZero() && v.Interface() == jtypes.NoMatchedCtx {
-	// 	Log("get NoMatched")
-	// 	boolEx := BoolEx{Data: false, NoMatch: true}
-	// 	return boolEx
-	// }
-
 	res := !Boolean(v)
 	boolEx := BoolEx{Data: res}
 	return boolEx

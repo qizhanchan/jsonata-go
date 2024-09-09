@@ -27,15 +27,15 @@ import (
 // })`
 
 const rule = `
-/* header comment */
-{"var_a": a}
-/* header comment */
+phone[0]
 `
 
 const inputStr = `
-{
-"a":1
-    }
+[
+            {"phone": [{"number" : 0}]},
+            {"phone": [{"number" : 1}]},
+            {"phone": [{"number" : 2}]}
+        ]
 `
 
 func main() {

@@ -20,6 +20,7 @@ var undefined reflect.Value // TODO: 这里是否可以用其它方式代替
 
 var typeInterfaceSlice = reflect.SliceOf(jtypes.TypeInterface)
 
+// 这个函数只是一个路由，根据不同的 node 类型，调用不同的 eval 函数，本身没有其它功能
 func eval(node jparse.Node, input reflect.Value, env *environment) (reflect.Value, error) {
 	var err error
 	var v reflect.Value
@@ -195,7 +196,9 @@ func evalPath(node *jparse.PathNode, input reflect.Value, env *environment) (ref
 
 		if step0, ok := step.(*jparse.ArrayNode); ok && i == 0 {
 			output, err = eval(step0, output, env)
+			utils.Log("tag6")
 		} else {
+			utils.Log("tag7")
 			output, err = evalPathStep(step, output, env, i == lastIndex)
 		}
 
@@ -285,8 +288,10 @@ func evalPathStep(step jparse.Node, input reflect.Value, env *environment, lastS
 func evalOverArray(node jparse.Node, data reflect.Value, env *environment) ([]reflect.Value, error) {
 	var results []reflect.Value
 
+	// 当前的逻辑是，如果是数组，就遍历数组，如果是对象，就遍历对象的值
+	// 但是对于 PredicateNode, 是要先执行 Exprs, 再执行 Filters
 	for i, N := 0, data.Len(); i < N; i++ {
-
+		utils.Log("evalOverArray", "i", i)
 		res, err := eval(node, data.Index(i), env)
 		if err != nil {
 			return nil, err
@@ -653,16 +658,21 @@ func evalPredicate(node *jparse.PredicateNode, data reflect.Value, env *environm
 		return undefined, err
 	}
 
+	utils.Log("before filter", utils.GetJsonIndent(items), utils.GetJsonIndent(data))
+
 	for _, filter := range node.Filters {
 
 		// TODO: If this filter is of type *jparse.NumberNode,
 		// we should access the indexed item directly instead
 		// of calling applyFilter.
 
+		utils.Log("before filter item", utils.GetJsonIndent(items))
+
 		items, err = applyFilter(filter, arrayify(items), env)
 		if err != nil {
 			return undefined, err
 		}
+		utils.Log("after filter item", utils.GetJsonIndent(items))
 
 		if items.Len() == 0 {
 			items = undefined
@@ -1059,6 +1069,7 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 
 		v, err := eval(node, data, env)
 		if err != nil || v == undefined {
+			utils.Log("got undefined")
 			return undefined, false, false, err
 		}
 
@@ -1101,7 +1112,8 @@ func evalComparisonOperator(node *jparse.ComparisonOperatorNode, data reflect.Va
 
 	// Return undefined if either side is undefined.
 	if lhs == undefined || rhs == undefined {
-		return reflect.ValueOf(false), nil
+		utils.Log("lhs or rhs is undefined")
+		return undefined, nil
 	}
 
 	var b bool

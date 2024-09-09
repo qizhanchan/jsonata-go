@@ -43,7 +43,11 @@ func Log(a ...any) (n int, err error) {
 	// 获取调用 Log 函数的行号
 	_, file, line, _ := runtime.Caller(1)
 	// 获取文件名
-	file = "> " + filepath.Base(file)
+	baseName := filepath.Base(file)
+	if baseName == "jparse.go" {
+		return
+	}
+	file = "> " + baseName
 	file = file + ":" + fmt.Sprint(line)
 	a = append([]any{file}, a...)
 
