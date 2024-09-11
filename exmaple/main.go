@@ -27,13 +27,13 @@ import (
 // })`
 
 const rule = `
-$assert(Account < 35, 'Too Expensive')
+$formatInteger(undefined, '0')
 
 `
 
 const inputStr = `
 {
-    "Account": 2
+
 }
 
 
