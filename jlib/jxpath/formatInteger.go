@@ -2,9 +2,11 @@ package jxpath
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
+	rom "github.com/brandenc40/romannumeral"
 	"github.com/divan/num2words"
 	"github.com/samber/lo"
 )
@@ -59,17 +61,14 @@ func num2String(num int, format string, ordinal bool) string {
 		}
 
 		if num%100 > 0 {
-			fmt.Println("tag1")
 			mod := num % 100
 			if ordinalNum, ok := ordinalMap[mod]; ok {
 				strSegs[segCount-1] = ordinalNum
 			} else if mod%10 == 0 {
 				// 不是 0， 也不是 10， 意味着是 20, 30, 40, 50, 60, 70, 80, 90
 				// 需要把最后一位的 y 替换成 ieth
-				fmt.Println("tag2")
 				strSegs[segCount-1] = strings.TrimSuffix(strSegs[segCount-1], "y") + "ieth"
 			} else {
-				fmt.Println("tag3")
 				// 处理 21 - 99 并且最后一位不是 0 的情况
 				modTen := mod % 10
 				if ordinalNum2, ok2 := ordinalMap[modTen]; ok2 {
@@ -98,8 +97,6 @@ func num2String(num int, format string, ordinal bool) string {
 			strSegs[i] = strings.Title(seg)
 		}
 	}
-
-	fmt.Println(GetJsonIndent(strSegs))
 
 	if len(strSegs) > 1 {
 		return strings.Join(strSegs, " ")
@@ -134,6 +131,17 @@ func FormatInteger(x float64, format string) (string, error) {
 	if lo.Contains([]string{"w", "W", "Ww"}, formatOption.DirectFormat) {
 		str := num2String(int(x), formatOption.DirectFormat, formatOption.Ordinal)
 		return str, nil
+	}
+
+	if lo.Contains([]string{"i", "I"}, formatOption.DirectFormat) {
+		roman, err := rom.IntToString(int(x)) // 默认返回大写
+		if err != nil {
+			return "", err
+		}
+		if formatOption.DirectFormat == "i" {
+			return strings.ToLower(roman), nil
+		}
+		return roman, nil
 	}
 
 	return "", nil
@@ -188,9 +196,14 @@ func validateFormat(format string) (layoutOption, error) {
 	if strings.HasSuffix(format, ";o") {
 		option.Ordinal = true
 		format = strings.TrimSuffix(format, ";o")
+
+		if format == "i" || format == "I" {
+			return option, errors.New("roman number does not support ordinal")
+		}
 	}
 
 	if lo.Contains(directFormatList, format) {
+
 		option.DirectFormat = format
 	}
 

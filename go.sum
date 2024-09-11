@@ -1,3 +1,5 @@
+github.com/brandenc40/romannumeral v1.1.5 h1:X9vvg5iJATxGzs0u4p1StxlFixPdDcHT44eBv4T5kRk=
+github.com/brandenc40/romannumeral v1.1.5/go.mod h1:BGaddAnc6x74z0muZeTu0Z+OMhQXfd8U76vkSLIPvxk=
 github.com/divan/num2words v0.0.0-20170904212200-57dba452f942 h1:fJ8/Lid8fF4i7Bwl7vWKvG2KeZzr3yU4qG6h/DPdXLU=
 github.com/divan/num2words v0.0.0-20170904212200-57dba452f942/go.mod h1:K88GQWK1aAiPMo9q2LZwyKBfEGnge7kmVVTUcZ61HSc=
 github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25dO0g=

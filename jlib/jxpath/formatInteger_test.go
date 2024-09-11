@@ -182,6 +182,31 @@ func TestFormatInteger(t *testing.T) {
 			},
 			want: "one millionth",
 		},
+		{
+			name: "test22",
+			args: args{
+				x:      1,
+				format: "i",
+			},
+			want: "i",
+		},
+		{
+			name: "test23",
+			args: args{
+				x:      1,
+				format: "I",
+			},
+			want: "I",
+		},
+		{
+			name: "test24",
+			args: args{
+				x:      1,
+				format: "I;o",
+			},
+			want:    "",
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
