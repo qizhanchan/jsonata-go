@@ -19,6 +19,7 @@ import (
 
 	"github.com/blues/jsonata-go/jlib/jxpath"
 	"github.com/blues/jsonata-go/jtypes"
+	"github.com/blues/jsonata-go/utils"
 )
 
 // String converts a JSONata value to a string. Values that are
@@ -231,9 +232,9 @@ func Join(values reflect.Value, separator jtypes.OptionalString) (string, error)
 // regular expression in the source string. Each object in the
 // array has the following fields:
 //
-//     match - the substring matched by the regex
-//     index - the starting offset of this match
-//     groups - any captured groups for this match
+//	match - the substring matched by the regex
+//	index - the starting offset of this match
+//	groups - any captured groups for this match
 //
 // The optional third argument specifies the maximum number
 // of matches to return. By default, Match returns all matches.
@@ -392,6 +393,24 @@ func FormatNumber(value float64, picture string, options jtypes.OptionalValue) (
 	}
 
 	return jxpath.FormatNumber(value, picture, format)
+}
+
+func FormatInteger(v1, v2 reflect.Value) (interface{}, error) {
+	utils.Log("FormatInteger", v1.Kind(), utils.GetJsonIndent(v1), utils.GetJsonIndent(v2))
+
+	// 当有任意一个是 undefined 的时候，返回 undefined
+	if jtypes.IsEqual(v1, jtypes.NoMatchedCtx) || jtypes.IsEqual(v2, jtypes.NoMatchedCtx) {
+		return jtypes.NoMatchedCtx, nil
+	}
+
+	if !jtypes.IsNumber(v1) {
+		return "", fmt.Errorf("format-integer: first argument of function formatInteger must be a number")
+	}
+	if !jtypes.IsString(v2) {
+		return "", fmt.Errorf("format-integer: second argument of function formatInteger must be a string")
+	}
+
+	return jxpath.FormatInteger(v1.Float(), v2.String())
 }
 
 func newDecimalFormat(opts reflect.Value) (jxpath.DecimalFormat, error) {

@@ -169,22 +169,28 @@ func validateFormat(format string) (layoutOption, error) {
 	// https://www.w3.org/TR/xpath-functions-31/#func-format-integer
 
 	option := layoutOption{}
-	if strings.Contains(format, "#") {
-		option.OnlyNumber = true
-		return option, nil
-	}
 
 	// 不能同时存在全角和半角
-	formatRuns := []rune(format)
+	formatRunes := []rune(format)
 	hasFullWord := false
 	hasHalfWord := false
-	for _, r := range formatRuns {
+	isAllNumber := true
+	for _, r := range formatRunes {
 		if len(string(r)) > 1 {
 			hasFullWord = true
-			break
 		} else if len(string(r)) == 1 {
 			hasHalfWord = true
 		}
+
+		if ('0' <= r && r <= '9') || ('０' <= r && r <= '９') {
+		} else {
+			isAllNumber = false
+		}
+	}
+
+	if strings.Contains(format, "#") || isAllNumber {
+		option.OnlyNumber = true
+		return option, nil
 	}
 
 	if hasFullWord && hasHalfWord {

@@ -27,7 +27,7 @@ import (
 // })`
 
 const rule = `
-$formatInteger(undefined, '0')
+$formatInteger(23, "#,0")
 
 `
 
