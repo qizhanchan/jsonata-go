@@ -144,6 +144,17 @@ func FormatInteger(x float64, format string) (string, error) {
 		return roman, nil
 	}
 
+	if lo.Contains([]string{"a", "A"}, formatOption.DirectFormat) {
+		roman, err := ColumnNumberToName(int(x)) // 默认返回大写
+		if err != nil {
+			return "", err
+		}
+		if formatOption.DirectFormat == "i" {
+			return strings.ToLower(roman), nil
+		}
+		return roman, nil
+	}
+
 	return "", nil
 }
 
@@ -160,6 +171,8 @@ var directFormatList = []string{
 	"Ww", // Words
 	"i",  // 罗马数组小写
 	"I",  // 罗马数组大写
+	"a",  // spreadsheet 列名小写
+	"A",  // spreadsheet 列名大写
 }
 
 var ErrInvalidFormat = fmt.Errorf("invalid format")
@@ -209,9 +222,23 @@ func validateFormat(format string) (layoutOption, error) {
 	}
 
 	if lo.Contains(directFormatList, format) {
-
 		option.DirectFormat = format
 	}
 
 	return option, nil
+}
+
+func ColumnNumberToName(num int) (string, error) {
+	if num < 1 {
+		return "", fmt.Errorf("incorrect column number %d", num)
+	}
+	if num > 16384 {
+		return "", errors.New("column number exceeds maximum limit")
+	}
+	var col string
+	for num > 0 {
+		col = string(rune((num-1)%26+65)) + col
+		num = (num - 1) / 26
+	}
+	return col, nil
 }
