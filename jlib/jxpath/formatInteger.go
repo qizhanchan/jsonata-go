@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	rom "github.com/brandenc40/romannumeral"
 	"github.com/divan/num2words"
@@ -124,8 +125,18 @@ func FormatInteger(x float64, format string) (string, error) {
 	x = float64(int64(x))
 
 	if formatOption.OnlyNumber {
-		fmt.Println("formatOption.OnlyNumber")
-		return FormatNumber(x, format, dfForInteger)
+		fmt.Println("formatOption.OnlyNumber", formatOption.FullWord)
+
+		// 因为当前的 format number 不支持全角，所以需要转换成半角，在最终输出的时候，再转换成全角
+		formatHalf := ToHalfWidth(format)
+		number, err := FormatNumber(x, formatHalf, dfForInteger)
+		if err != nil {
+			return "", err
+		}
+		if formatOption.FullWord {
+			return ToFullWidth(number), nil
+		}
+		return number, nil
 	}
 
 	if lo.Contains([]string{"w", "W", "Ww"}, formatOption.DirectFormat) {
@@ -149,7 +160,7 @@ func FormatInteger(x float64, format string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if formatOption.DirectFormat == "i" {
+		if formatOption.DirectFormat == "a" {
 			return strings.ToLower(roman), nil
 		}
 		return roman, nil
@@ -162,7 +173,7 @@ type layoutOption struct {
 	OnlyNumber   bool
 	Ordinal      bool
 	DirectFormat string
-	Full         bool // 是否全角，否则是半角
+	FullWord     bool // 是否全角，否则是半角
 }
 
 var directFormatList = []string{
@@ -186,28 +197,40 @@ func validateFormat(format string) (layoutOption, error) {
 	// 不能同时存在全角和半角
 	formatRunes := []rune(format)
 	hasFullWord := false
-	hasHalfWord := false
 	isAllNumber := true
 	for _, r := range formatRunes {
 		if len(string(r)) > 1 {
 			hasFullWord = true
-		} else if len(string(r)) == 1 {
-			hasHalfWord = true
 		}
 
 		if ('0' <= r && r <= '9') || ('０' <= r && r <= '９') {
 		} else {
 			isAllNumber = false
 		}
+
+		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') {
+			if !lo.Contains(directFormatList, string(r)) && r != 'o' {
+				fmt.Println("invalid format", string(r))
+				return option, ErrInvalidFormat
+			}
+		}
+	}
+
+	if hasFullWord {
+		// 如果有全角，那么所有的数字都必须是全角
+		for _, r := range formatRunes {
+			if '0' <= r && r <= '9' {
+				return option, ErrInvalidFormat
+			}
+		}
 	}
 
 	if strings.Contains(format, "#") || isAllNumber {
 		option.OnlyNumber = true
+		if hasFullWord {
+			option.FullWord = true
+		}
 		return option, nil
-	}
-
-	if hasFullWord && hasHalfWord {
-		return option, ErrInvalidFormat
 	}
 
 	// num2words
@@ -241,4 +264,30 @@ func ColumnNumberToName(num int) (string, error) {
 		num = (num - 1) / 26
 	}
 	return col, nil
+}
+
+// 半角转全角
+func ToFullWidth(s string) string {
+	var fullWidth []rune
+	for _, c := range s {
+		if unicode.IsPrint(c) && c <= 0x7F && c >= 0x21 {
+			c += 0xFEE0
+		}
+		fullWidth = append(fullWidth, c)
+	}
+	return string(fullWidth)
+}
+
+// 全角转半角
+func ToHalfWidth(s string) string {
+	var halfWidth []rune
+	for _, c := range s {
+		if unicode.IsPrint(c) && c >= 0xFF01 && c <= 0xFF5E {
+			c -= 0xFEE0
+		} else if c == 0x3000 { // 全角空格特殊处理
+			c = 0x20
+		}
+		halfWidth = append(halfWidth, c)
+	}
+	return string(halfWidth)
 }

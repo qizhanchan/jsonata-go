@@ -27,7 +27,7 @@ import (
 // })`
 
 const rule = `
-$formatInteger(23, "#,0")
+$formatInteger(23, "au")
 
 `
 
@@ -35,8 +35,6 @@ const inputStr = `
 {
 
 }
-
-
 `
 
 func main() {

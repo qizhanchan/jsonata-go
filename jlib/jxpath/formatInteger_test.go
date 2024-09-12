@@ -215,16 +215,48 @@ func TestFormatInteger(t *testing.T) {
 				x:      1,
 				format: "a",
 			},
-			want:    "a",
-			wantErr: true,
+			want: "a",
 		},
 		{
 
 			args: args{
 				x:      1,
+				format: "A",
+			},
+			want: "A",
+		},
+		{
+
+			args: args{
+				x:      1234,
 				format: "a",
 			},
-			want:    "a",
+			want: "aul",
+		},
+		{
+
+			args: args{
+				x:      1234,
+				format: "au", // u 是无效的
+			},
+			want:    "",
+			wantErr: true,
+		},
+		{
+
+			args: args{
+				x:      1234,
+				format: "#０",
+			},
+			want: "１２３４",
+		},
+		{
+
+			args: args{
+				x:      1234,
+				format: "#０0", // 不能同时包含全角和半角
+			},
+			want:    "",
 			wantErr: true,
 		},
 	}
