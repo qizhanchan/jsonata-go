@@ -12,18 +12,6 @@ import (
 	"github.com/samber/lo"
 )
 
-// func formatDigits(format string) (string, error) {
-// 	formatRuns := []rune(format)
-// 	lastRune := formatRuns[len(formatRuns)-1]
-// 	fullWord := false
-// 	if ('0' <= lastRune && lastRune <= '9') && ('０' < lastRune && lastRune < '９') {
-//
-// 	} else {
-// 		return "", fmt.Errorf("last char is not a digit")
-// 	}
-//
-// }
-
 var (
 	dfForInteger = NewDecimalFormat()
 	dividerUnit  = []string{"thousand", "million", "billion", "trillion", "quadrillion", "quintillion", "sextillion"}
@@ -51,35 +39,39 @@ var (
 	}
 )
 
+// 如果传入 twenty-one， 返回 twenty-first
+// 如果传入 one， 返回 first
+func getStringOrdinal(str string) string {
+	if cardinal2ordinal[str] != "" {
+		return cardinal2ordinal[str]
+	}
+	var strSegs []string
+	if strings.Contains(str, "-") {
+		strSegs = strings.Split(str, "-")
+		if len(strSegs) == 2 {
+			strSegs[1] = cardinal2ordinal[strSegs[1]]
+			return strings.Join(strSegs, "-")
+		}
+	}
+	if strings.Contains(str, " ") {
+		strSegs = strings.Split(str, " ")
+		if len(strSegs) == 2 {
+			strSegs[1] = cardinal2ordinal[strSegs[1]]
+			return strings.Join(strSegs, " ")
+		}
+	}
+
+	return "unknown"
+}
+
 func num2String(num int, format string, ordinal bool) string {
 	str := num2words.ConvertAnd(num)
 	strSegs := strings.Split(str, " ")
-	segCount := len(strSegs)
 	if ordinal {
-		if num == 0 {
-			strSegs[0] = ordinalMap[0]
-			return strSegs[0]
-		}
-
-		if num%100 > 0 {
-			mod := num % 100
-			if ordinalNum, ok := ordinalMap[mod]; ok {
-				strSegs[segCount-1] = ordinalNum
-			} else if mod%10 == 0 {
-				// 不是 0， 也不是 10， 意味着是 20, 30, 40, 50, 60, 70, 80, 90
-				// 需要把最后一位的 y 替换成 ieth
-				strSegs[segCount-1] = strings.TrimSuffix(strSegs[segCount-1], "y") + "ieth"
-			} else {
-				// 处理 21 - 99 并且最后一位不是 0 的情况
-				modTen := mod % 10
-				if ordinalNum2, ok2 := ordinalMap[modTen]; ok2 {
-					// 最后两个单词需要用中横线连接
-					strSegs[segCount-1] = num2words.ConvertAnd(mod-modTen) + "-" + ordinalNum2
-				}
-			}
-		} else {
-			strSegs[segCount-1] += "th"
-		}
+		// 如果是序数，那么最后一个单词需要转换
+		lastSeg := strSegs[len(strSegs)-1]
+		lastSeg2 := getStringOrdinal(lastSeg)
+		strSegs[len(strSegs)-1] = lastSeg2
 	}
 
 	// 全部单词大写
@@ -99,11 +91,7 @@ func num2String(num int, format string, ordinal bool) string {
 		}
 	}
 
-	if len(strSegs) > 1 {
-		return strings.Join(strSegs, " ")
-	} else {
-		return strSegs[0]
-	}
+	return strings.Join(strSegs, " ")
 }
 
 func GetJsonIndent(v interface{}) string {
@@ -116,28 +104,13 @@ func GetJsonIndent(v interface{}) string {
 }
 
 func FormatInteger(x float64, format string) (string, error) {
-	formatOption, err := validateFormat(format)
+	formatOption, err := parseFormat(format)
 	if err != nil {
 		return "", err
 	}
 
 	// 第一步，截断 x 的小数部分
 	x = float64(int64(x))
-
-	if formatOption.OnlyNumber {
-		fmt.Println("formatOption.OnlyNumber", formatOption.FullWord)
-
-		// 因为当前的 format number 不支持全角，所以需要转换成半角，在最终输出的时候，再转换成全角
-		formatHalf := ToHalfWidth(format)
-		number, err := FormatNumber(x, formatHalf, dfForInteger)
-		if err != nil {
-			return "", err
-		}
-		if formatOption.FullWord {
-			return ToFullWidth(number), nil
-		}
-		return number, nil
-	}
 
 	if lo.Contains([]string{"w", "W", "Ww"}, formatOption.DirectFormat) {
 		str := num2String(int(x), formatOption.DirectFormat, formatOption.Ordinal)
@@ -166,11 +139,20 @@ func FormatInteger(x float64, format string) (string, error) {
 		return roman, nil
 	}
 
-	return "", nil
+	// 因为当前的 format number 不支持全角，所以需要转换成半角，在最终输出的时候，再转换成全角
+	formatHalf := ToHalfWidth(format)
+	number, err := FormatNumber(x, formatHalf, dfForInteger)
+	if err != nil {
+		return "", err
+	}
+	if formatOption.FullWord {
+		return ToFullWidth(number), nil
+	}
+	return number, nil
+
 }
 
 type layoutOption struct {
-	OnlyNumber   bool
 	Ordinal      bool
 	DirectFormat string
 	FullWord     bool // 是否全角，否则是半角
@@ -188,7 +170,7 @@ var directFormatList = []string{
 
 var ErrInvalidFormat = fmt.Errorf("invalid format")
 
-func validateFormat(format string) (layoutOption, error) {
+func parseFormat(format string) (layoutOption, error) {
 	// 参考 js 的 format-integer 的实现， 只接收特定的格式
 	// https://www.w3.org/TR/xpath-functions-31/#func-format-integer
 
@@ -197,15 +179,9 @@ func validateFormat(format string) (layoutOption, error) {
 	// 不能同时存在全角和半角
 	formatRunes := []rune(format)
 	hasFullWord := false
-	isAllNumber := true
 	for _, r := range formatRunes {
 		if len(string(r)) > 1 {
 			hasFullWord = true
-		}
-
-		if ('0' <= r && r <= '9') || ('０' <= r && r <= '９') {
-		} else {
-			isAllNumber = false
 		}
 
 		if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') {
@@ -225,16 +201,7 @@ func validateFormat(format string) (layoutOption, error) {
 		}
 	}
 
-	if strings.Contains(format, "#") || isAllNumber {
-		option.OnlyNumber = true
-		if hasFullWord {
-			option.FullWord = true
-		}
-		return option, nil
-	}
-
 	// num2words
-
 	if strings.HasSuffix(format, ";o") {
 		option.Ordinal = true
 		format = strings.TrimSuffix(format, ";o")
@@ -248,6 +215,9 @@ func validateFormat(format string) (layoutOption, error) {
 		option.DirectFormat = format
 	}
 
+	if hasFullWord {
+		option.FullWord = true
+	}
 	return option, nil
 }
 
@@ -264,6 +234,17 @@ func ColumnNumberToName(num int) (string, error) {
 		num = (num - 1) / 26
 	}
 	return col, nil
+}
+
+func NameToColumnNumber(columnName string) (int, error) {
+	result := 0
+	for _, r := range columnName {
+		if r < 'A' || r > 'Z' {
+			return 0, fmt.Errorf("invalid column name: %s", columnName)
+		}
+		result = result*26 + (int(r-'A') + 1)
+	}
+	return result, nil
 }
 
 // 半角转全角
