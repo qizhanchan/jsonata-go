@@ -83,6 +83,20 @@ func TestParseInteger(t *testing.T) {
 			},
 			want: 1e+15,
 		},
+		{
+			args: args{
+				num:    "one thousand trillion",
+				format: "w",
+			},
+			want: 1e+15,
+		},
+		{
+			args: args{
+				num:    "one hundred million",
+				format: "w",
+			},
+			want: 1e+8,
+		},
 	}
 	for _, tt := range tests {
 		name := tt.args.num + "_" + tt.args.format

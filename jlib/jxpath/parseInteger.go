@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blues/jsonata-go/utils"
 	rom "github.com/brandenc40/romannumeral"
 	"github.com/samber/lo"
 )
@@ -109,18 +110,32 @@ func wordsToNumber(words string, ordinal bool) int {
 		wordList[len(wordList)-1] = ordinal2cardinal[lastWord]
 	}
 
+	lastBig := false
 	for _, word := range wordList {
 		// 检查单词是否是基本数字
 		if value, found := smallNumbers[word]; found {
-
+			if lastBig {
+				current = 0
+			}
 			current += value
-			fmt.Println("small value:", value, current)
+			lastBig = false
+			fmt.Println("small value:", value, "current", current)
 		} else if value, found := bigNumbers[word]; found {
 			current *= value
-			total += current
-			current = 0
-			fmt.Println("big value:", value, current, total)
+			if !lastBig { // 上一个 word 是小数
+				total += current
+			} else {
+				total = current
+			}
+
+			lastBig = true
+			fmt.Println("big value:", value, "current", current, "total", total)
+		} else {
+			utils.Log("word not found", word)
 		}
+	}
+	if lastBig {
+		return total
 	}
 
 	return total + current
