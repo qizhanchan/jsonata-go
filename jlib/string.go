@@ -406,11 +406,34 @@ func FormatInteger(v1, v2 reflect.Value) (interface{}, error) {
 	if !jtypes.IsNumber(v1) {
 		return "", fmt.Errorf("format-integer: first argument of function formatInteger must be a number")
 	}
-	if !jtypes.IsString(v2) {
-		return "", fmt.Errorf("format-integer: second argument of function formatInteger must be a string")
+	if !jtypes.IsString(v2) || v2.String() == "" {
+		return "", fmt.Errorf("format-integer: second argument of function formatInteger must be a non-empty string")
 	}
 
 	return jxpath.FormatInteger(v1.Float(), v2.String())
+}
+
+func ParseInteger(v1, v2 reflect.Value) (interface{}, error) {
+	utils.Log("ParseInteger", v1.Kind(), utils.GetJsonIndent(v1), utils.GetJsonIndent(v2))
+
+	// 当有任意一个是 undefined 的时候，返回 undefined
+	if jtypes.IsEqual(v1, jtypes.NoMatchedCtx) || jtypes.IsEqual(v2, jtypes.NoMatchedCtx) {
+		return jtypes.NoMatchedCtx, nil
+	}
+
+	if !jtypes.IsString(v1) {
+		return "", fmt.Errorf("format-integer: first argument of function formatInteger must be a non-empty string")
+	}
+
+	if v1.String() == "" {
+		return nil, nil
+	}
+
+	if !jtypes.IsString(v2) || v2.String() == "" {
+		return "", fmt.Errorf("format-integer: second argument of function formatInteger must be a non-empty string")
+	}
+
+	return jxpath.ParseInteger(v1.String(), v2.String())
 }
 
 func newDecimalFormat(opts reflect.Value) (jxpath.DecimalFormat, error) {

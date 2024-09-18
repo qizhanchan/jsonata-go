@@ -27,7 +27,7 @@ import (
 // })`
 
 const rule = `
-$formatInteger(23, "au")
+$parseInteger("twelve thousand, four hundred and seventy-six", 'w')
 
 `
 

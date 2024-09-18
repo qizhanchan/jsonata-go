@@ -244,9 +244,12 @@ func (c *goCallable) Call(argv []reflect.Value) (reflect.Value, error) {
 	utils.Log("type", results[0].Type().String())
 
 	utils.Log("goCallable.Call end \n")
-	// 这里统一对函数的输出检查一下，看类型是否 BoolEx
+	// 这里统一对函数的输出检查一下
 	if results[0].IsValid() {
-		utils.Log()
+		utils.Log("type>", results[0].Type().String(), utils.GetJsonIndent(results[0].Interface()))
+		if jtypes.IsEqual(results[0], jtypes.NoMatchedCtx) {
+			return undefined, nil
+		}
 		switch results[0].Type().String() {
 		case "jlib.BoolEx":
 			boolEx := results[0].Interface().(jlib.BoolEx)
