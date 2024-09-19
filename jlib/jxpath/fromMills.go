@@ -2,11 +2,18 @@ package jxpath
 
 import (
 	"errors"
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/samber/lo"
+)
+
+var (
+	tplOfDate = "\\[[\\w-,]+\\]"
+	regOfDate = regexp.MustCompile(tplOfDate)
 )
 
 // 参考 https://www.w3.org/TR/xpath-functions-31/#rules-for-datetime-formatting 实现
@@ -34,17 +41,6 @@ const (
 	MinWidthSep = ','
 	MaxWidthSep = '-'
 )
-
-type dateSegmentOption struct {
-	Index DateIndex
-
-	toWords           bool
-	toWordsFormat     string
-	toNumbers         bool
-	toNumbersFormat   string
-	toNumbersMinWidth int
-	toNumbersMaxWidth int
-}
 
 type patternIndex int
 
@@ -101,6 +97,8 @@ func cutString(minWidth, maxWidth int, strCopy, strOrigin string) string {
 			return strCopy[len(strCopy)-maxWidth:]
 		}
 	}
+
+	return strCopy
 }
 
 func getNamedStr(str, format string) string {
@@ -154,6 +152,12 @@ func formatNumber(num int, format string, index DateIndex) (string, error) {
 		format = strings.ReplaceAll(format, "##", "#0")
 	}
 
+	ordinal := false
+	if strings.HasSuffix(format, "o") {
+		ordinal = true
+		format = format[:len(format)-1]
+	}
+
 	// 如果有 # 符号，则需要特殊处理一下
 	// 当年份是 2018 的时候
 	// #12 > 12
@@ -182,7 +186,7 @@ func formatNumber(num int, format string, index DateIndex) (string, error) {
 
 	// 只有 day of week 和 月份才支持 name
 	if len(format) > 0 && strings.ToLower(string(format[0])) == "n" {
-		if lo.Contains([]DateIndex{DayOfWeek, Month}, index) {
+		if lo.Contains([]DateIndex{DayOfWeek, Month, AmPm}, index) {
 			if index == DayOfWeek {
 				sourceStr = time.Weekday(num).String()
 				sourceStr = getNamedStr(sourceStr, format)
@@ -196,47 +200,109 @@ func formatNumber(num int, format string, index DateIndex) (string, error) {
 				sourceStr = cutString(minWidth, maxWidth, sourceStr, sourceStr)
 				return sourceStr, nil
 			}
+
+			if index == AmPm {
+				sourceStr := "Am"
+				// 对于 PM AM 的判断，使用的是 hour 的值
+				if num > 12 {
+					sourceStr = "Pm"
+				}
+				sourceStr = getNamedStr(sourceStr, format)
+				sourceStr = cutString(minWidth, maxWidth, sourceStr, sourceStr)
+				return sourceStr, nil
+			}
 		}
 		return "", errors.New("format error: name format only support day of week and month")
 	}
 
 	// format 是纯数字场景
 
+	num2, err := getDateNum(num, sourceStr, format, index)
+	if err != nil {
+		return "", err
+	}
+
+	// 进行最小宽度和最大宽度的处理
+	num2 = cutString(minWidth, maxWidth, num2, sourceStr)
+
+	if ordinal {
+		num2 = num2Ordinal(num2)
+	}
+	return num2, nil
+}
+
+// 分钟和秒，默认是 00
+var zeroNum = map[DateIndex]string{
+	Minute: "00",
+	Second: "00",
+}
+
+func getDateNum(num int, sourceStr, format string, index DateIndex) (res string, err error) {
+	if num == 0 {
+		if zeroNumStr, ok := zeroNum[index]; ok {
+			sourceStr = zeroNumStr
+		}
+	}
+
 	formatLen := len(format)
 	switch index {
 	case Year:
+
 		if formatLen < 2 {
-			return cutString(minWidth, maxWidth, sourceStr, sourceStr), nil
+			return sourceStr, nil
 		} else if formatLen < 5 {
 			sourceStrCopy := sourceStr[len(sourceStr)-formatLen-2:]
-			return cutString(minWidth, maxWidth, sourceStrCopy, sourceStr), nil
+			return sourceStrCopy, nil
 		} else {
 			return "", errors.New("format error: year format length is too long")
 		}
 
-	case Month, Day, WeekOfMonth:
-		if formatLen == 1 {
+		// 这三个变量都是
+	case Month, Day, WeekOfMonth, Hour, HourHalf, Minute, Second, FractionalSeconds:
+		if formatLen < 2 {
+			return sourceStr, nil
+		} else if formatLen < 4 {
+			if len(sourceStr) < formatLen {
+				// padding 0
+				paddingZeroLen := formatLen - len(sourceStr)
+				paddingZero := strings.Repeat("0", paddingZeroLen)
+				return paddingZero + sourceStr, nil
+			}
 			return sourceStr, nil
 		} else {
-
+			return "", errors.New("format error: month, day, week of month format length is too long")
 		}
 
+		// 不受格式符号影响
 	case DayOfYear, WeekOfYear:
 		return sourceStr, nil
 
+	case Timezone:
+		format = strings.TrimSuffix(format, "t")
+		return FormatInteger(float64(num), format)
 	}
+
+	return "", fmt.Errorf("format error: unknown date index:%v", index)
+
 }
 
-func eatNumber(str string, index int) (int, string) {
-	numStr := ""
-	for i := index; i < len(str); i++ {
-		if '0' <= str[i] && str[i] <= '9' {
-			numStr += string(str[i])
-		} else {
-			break
-		}
+// 把一个数字转换成顺序模式
+// 1 -> 1st
+// 2 -> 2nd
+// 20 -> 20th
+// 01 -> 1st
+func num2Ordinal(num string) string {
+	lastDigit := num[len(num)-1]
+	switch lastDigit {
+	case '1':
+		return num + "st"
+	case '2':
+		return num + "nd"
+	case '3':
+		return num + "rd"
+	default:
+		return num + "th"
 	}
-	return index + len(numStr), numStr
 }
 
 // Y	year (absolute value)	1
@@ -254,9 +320,147 @@ func eatNumber(str string, index int) (int, string) {
 // f	fractional seconds	1
 // Z	timezone	01:01
 
-func segmentToString(o dateSegmentOption) string {
-	switch o.Index {
-	case Year:
+var prefixMap = map[string]DateIndex{
+	"Y": Year,
+	"M": Month,
+	"D": Day,
+	"d": DayOfYear,
+	"F": DayOfWeek,
+	"W": WeekOfYear,
+	"w": WeekOfMonth,
+	"H": Hour,
+	"h": HourHalf,
+	"P": AmPm,
+	"m": Minute,
+	"s": Second,
+	"f": FractionalSeconds,
+	"Z": Timezone,
+}
 
+func segmentToString(t time.Time, format string) (string, error) {
+	if format == "" {
+		return "", nil
 	}
+	prefix := format[0]
+	index, ok := prefixMap[string(prefix)]
+	if !ok {
+		return "", fmt.Errorf("format error: unknown date prefix:%v", string(prefix))
+	}
+	format = format[1:]
+
+	fmt.Println("index", index)
+
+	num := 0
+
+	switch index {
+	case Year:
+		num = t.Year()
+	case Month:
+		num = int(t.Month())
+	case Day:
+		num = t.Day()
+	case DayOfYear:
+		num = t.YearDay()
+	case DayOfWeek:
+		num = int(t.Weekday())
+	case WeekOfYear:
+		_, week := t.ISOWeek()
+		num = week
+	case WeekOfMonth:
+		_, week := t.ISOWeek()
+		num = week
+	case Hour:
+		num = t.Hour()
+	case HourHalf:
+		num = t.Hour() % 12
+	case AmPm:
+		num = t.Hour()
+	case Minute:
+		num = t.Minute()
+	case Second:
+		num = t.Second()
+	case FractionalSeconds:
+		num = t.Nanosecond() / 1000000
+	case Timezone:
+		_, offset := t.Zone()
+		num = offset/3600*100 + offset%3600/60
+	}
+
+	// fmt.Println("num", num, "index", index)
+	res, err := formatNumber(num, format, index)
+	if err != nil {
+		return "", err
+	}
+	if index == Timezone {
+		_, offset := t.Zone()
+		if offset > 0 {
+			res = "+" + res
+		}
+		// else {
+		// 	// res = "-" + res
+		// }
+	}
+	return res, nil
+}
+
+func FromMills(unixMills int, format string, timezone string) (string, error) {
+	// 替换换行符
+	format = strings.ReplaceAll(format, "\n", "")
+
+	// locate timezone
+	// 解析 "-0400" 时区
+	offsetSeconds := 0
+	if timezone != "" {
+		if len(timezone) != 5 {
+			return "", errors.New("timezone format error")
+		}
+
+		if timezone[0] != '+' && timezone[0] != '-' {
+			return "", errors.New("timezone format error")
+		}
+
+		offsetHourStr := timezone[1:3]
+		offsetMinuteStr := timezone[3:]
+		offsetHour, err := strconv.Atoi(offsetHourStr)
+		if err != nil {
+			return "", errors.New("timezone format error")
+		}
+		offsetMinute, err := strconv.Atoi(offsetMinuteStr)
+		if err != nil {
+			return "", errors.New("timezone format error")
+		}
+		offsetSeconds = offsetHour*3600 + offsetMinute*60
+		if timezone[0] == '-' {
+			offsetSeconds = -offsetSeconds
+		}
+	}
+
+	loc := time.FixedZone("my loc", offsetSeconds)
+
+	// calculate time with unixMills and timezone
+	t := time.Unix(int64(unixMills/1000), 0).In(loc)
+	fmt.Println("t", t)
+
+	// find all date format by regex, and replace them
+	var err2 error
+	output := regOfDate.ReplaceAllStringFunc(format, func(match string) string {
+		// 在这里对匹配到的字符串进行处理
+		formatInner := strings.TrimPrefix(match, "[")
+		formatInner = strings.TrimSuffix(formatInner, "]")
+		res, err := segmentToString(t, formatInner)
+		fmt.Println("res", res)
+		if err != nil {
+			err2 = err
+			return ""
+		}
+
+		return res
+	})
+
+	if err2 != nil {
+		fmt.Println("err2", err2)
+		return "", err2
+	}
+
+	return output, nil
 }
